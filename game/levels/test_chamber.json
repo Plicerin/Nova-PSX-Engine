@@ -1,0 +1,19 @@
+{
+  "name": "test_chamber",
+  "objects": [
+    {"mesh": "room",  "position": [0, 0, 0],        "rotation": [0, 0, 0],   "scale": [1, 1, 1]},
+    {"mesh": "crate", "position": [2, 0.5, 3],      "rotation": [0, 25, 0],  "scale": [1, 1, 1]},
+    {"mesh": "crate", "position": [-2.4, 0.5, 5],   "rotation": [0, -10, 0], "scale": [1, 1, 1]},
+    {"mesh": "crate", "position": [-1.9, 1.5, 5.2], "rotation": [0, 35, 0],  "scale": [1, 1, 1]},
+    {"mesh": "gem",   "position": [0, 1.45, 4],     "rotation": [0, 0, 0],   "scale": [1, 1, 1]}
+  ],
+  "camera_start": {"position": [0, 1.5, -3.5], "rotation": [0, 0, 0]},
+  "fog": {"enabled": true, "color": [44, 46, 56], "start": 6, "end": 16},
+  "clear_color": [44, 46, 56],
+  "light": {
+    "enabled": true,
+    "ambient": [70, 72, 86],
+    "diffuse": [190, 180, 155],
+    "direction": [-0.45, -0.8, 0.35]
+  }
+}

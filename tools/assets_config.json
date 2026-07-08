@@ -1,0 +1,21 @@
+{
+  "textures": [
+    {"name": "floor_tiles_01", "source": "source_assets/textures/floor_tiles_01.png", "format": "indexed_8"},
+    {"name": "wall_panel_01",  "source": "source_assets/textures/wall_panel_01.png",  "format": "indexed_8"},
+    {"name": "crate_01",       "source": "source_assets/textures/crate_01.png",       "format": "indexed_8"},
+    {"name": "gem_01",         "source": "source_assets/textures/gem_01.png",         "format": "indexed_8"},
+    {"name": "orb_glow",       "source": "source_assets/textures/orb_glow.png",       "format": "indexed_4", "transparent": true, "semitrans": true}
+  ],
+  "meshes": [
+    {"name": "room",  "source": "source_assets/models/room.obj",  "lit": true, "materials": {"floor": "floor_tiles_01", "wall": "wall_panel_01"}},
+    {"name": "crate", "source": "source_assets/models/crate.obj", "lit": true, "texture": "crate_01"},
+    {"name": "gem",   "source": "source_assets/models/gem.obj",   "lit": true, "texture": "gem_01"}
+  ],
+  "sounds": [
+    {"name": "blip",     "source": "source_assets/audio/blip.wav"},
+    {"name": "ambience", "source": "source_assets/audio/ambience_loop.wav", "music": true, "loop": true}
+  ],
+  "levels": [
+    {"name": "test_chamber", "source": "game/levels/test_chamber.json"}
+  ]
+}

@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Asset pipeline orchestrator.
+
+Reads tools/assets_config.json and builds everything into build/assets/:
+  1. runs tools/gen_source_assets.py first if it exists (same interpreter)
+  2. textures -> .texbin/.json through ONE shared VramAllocator (704 KiB hard
+     budget, height-desc shelf packing)
+  3. meshes  -> .meshbin/.json (texture sizes come from step 2's metadata)
+  4. sounds  -> raw copy of the source WAV into build/assets/audio/
+  5. levels  -> .lvlbin
+  6. manifest.bin last
+
+Prints a summary table plus VRAM usage (/704 KiB) and audio bytes (/512 KiB).
+Exits 1 on any failure.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from common import psx_formats as pf
+from texture_importer.texture_importer import import_textures
+from mesh_importer.mesh_importer import import_mesh
+from level_packer.level_packer import pack_level
+from asset_manifest_builder.asset_manifest_builder import build_manifest
+
+AUDIO_BUDGET_BYTES = 512 * 1024
+
+
+def _check_unique_names(config):
+    for kind in ("textures", "meshes", "sounds", "levels"):
+        seen = set()
+        for e in config.get(kind, []):
+            if "name" not in e or "source" not in e:
+                raise pf.PackError("%s entry missing 'name'/'source': %r"
+                                   % (kind, e))
+            if e["name"] in seen:
+                raise pf.PackError("duplicate %s name '%s'" % (kind, e["name"]))
+            seen.add(e["name"])
+
+
+def run_build(root, config_path):
+    # 1. generated source assets first
+    gen = os.path.join(root, "tools", "gen_source_assets.py")
+    if os.path.isfile(gen):
+        print("== generating source assets (%s) ==" % gen)
+        rc = subprocess.run([sys.executable, gen], cwd=root).returncode
+        if rc != 0:
+            raise pf.PackError("gen_source_assets.py failed (exit code %d)" % rc)
+
+    if not os.path.isfile(config_path):
+        raise pf.PackError("asset config not found: %s" % config_path)
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    # Optional local overlay (gitignored) — lets you add assets that can't be
+    # committed (e.g. third-party models) without touching the tracked config.
+    local_path = os.path.join(os.path.dirname(config_path), "assets_config.local.json")
+    if os.path.isfile(local_path):
+        with open(local_path, "r", encoding="utf-8") as f:
+            local = json.load(f)
+        for key in ("textures", "meshes", "sounds", "levels"):
+            config.setdefault(key, []).extend(local.get(key, []))
+        print("merged local overlay: %s" % os.path.basename(local_path))
+    _check_unique_names(config)
+
+    out_root = os.path.join(root, "build", "assets")
+    tex_dir = os.path.join(out_root, "textures")
+    mesh_dir = os.path.join(out_root, "meshes")
+    level_dir = os.path.join(out_root, "levels")
+    audio_dir = os.path.join(out_root, "audio")
+    for d in (tex_dir, mesh_dir, level_dir, audio_dir):
+        os.makedirs(d, exist_ok=True)
+
+    rows = []   # (kind, name, out path rel to root, bytes, note)
+
+    def rel(p):
+        return os.path.relpath(p, root).replace("\\", "/")
+
+    # 2. textures (one shared allocator across ALL textures)
+    allocator = pf.VramAllocator()
+    print("== textures ==")
+    tex_metas = import_textures(config.get("textures", []), allocator,
+                                tex_dir, source_root=root)
+    for m in tex_metas:
+        rows.append(("texture", m["name"], rel(m["file"]), m["file_bytes"],
+                     "%dx%d %s page %d vram %d B"
+                     % (m["width"], m["height"], m["format"],
+                        m["texture_page"], m["vram_cost_bytes"])))
+
+    # 3. meshes
+    print("== meshes ==")
+    for entry in config.get("meshes", []):
+        s = import_mesh(entry, textures_dir=tex_dir, out_dir=mesh_dir,
+                        source_root=root)
+        rows.append(("mesh", s["name"], rel(s["file"]), s["file_bytes"],
+                     "%d verts %d prims %d tris r=%d"
+                     % (s["nverts"], s["nprims"], s["tri_count"],
+                        s["radius"])))
+
+    # 4. sounds: raw copy, no processing
+    print("== sounds ==")
+    audio_bytes = 0
+    for entry in config.get("sounds", []):
+        src = os.path.join(root, entry["source"])
+        if not os.path.isfile(src):
+            raise pf.PackError("sound '%s': source not found: %s"
+                               % (entry["name"], src))
+        dst = os.path.join(audio_dir, entry["name"] + ".wav")
+        shutil.copyfile(src, dst)
+        size = os.path.getsize(dst)
+        audio_bytes += size
+        note = []
+        if entry.get("music", False):
+            note.append("music")
+        if entry.get("loop", False):
+            note.append("loop")
+        rows.append(("sound", entry["name"], rel(dst), size,
+                     " ".join(note) or "sfx"))
+
+    # 5. levels
+    print("== levels ==")
+    for entry in config.get("levels", []):
+        s = pack_level(os.path.join(root, entry["source"]),
+                       os.path.join(level_dir, entry["name"] + ".lvlbin"))
+        rows.append(("level", entry["name"], rel(s["file"]), s["file_bytes"],
+                     "%d objects" % s["nobjects"]))
+
+    # 6. manifest last
+    print("== manifest ==")
+    manifest_path = os.path.join(out_root, "manifest.bin")
+    records = build_manifest(config, root, manifest_path)
+    rows.append(("manifest", "manifest", rel(manifest_path),
+                 os.path.getsize(manifest_path), "%d records" % len(records)))
+
+    # summary
+    print("")
+    print("%-9s %-24s %-44s %10s  %s" % ("type", "name", "output", "bytes",
+                                         "info"))
+    print("-" * 110)
+    for kind, name, path, size, note in rows:
+        print("%-9s %-24s %-44s %10d  %s" % (kind, name, path, size, note))
+    print("-" * 110)
+    print("VRAM:  %s" % allocator.usage_string())
+    print("Audio: %d / %d bytes (%.1f%% of 512 KiB)"
+          % (audio_bytes, AUDIO_BUDGET_BYTES,
+             100.0 * audio_bytes / AUDIO_BUDGET_BYTES))
+    if audio_bytes > AUDIO_BUDGET_BYTES:
+        print("warning: audio exceeds the 512 KiB budget")
+    print("done: %d assets -> %s" % (len(records), rel(out_root)))
+
+
+def main(argv=None):
+    default_root = os.path.dirname(_TOOLS_DIR)
+    ap = argparse.ArgumentParser(
+        description="Build all game assets from tools/assets_config.json "
+                    "into build/assets/.")
+    ap.add_argument("--config",
+                    default=os.path.join(_TOOLS_DIR, "assets_config.json"),
+                    help="asset config JSON (default: %(default)s)")
+    ap.add_argument("--root", default=default_root,
+                    help="project root (default: %(default)s)")
+    args = ap.parse_args(argv)
+    try:
+        run_build(os.path.abspath(args.root), os.path.abspath(args.config))
+    except pf.PackError as e:
+        print("error: %s" % e, file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # any unexpected failure must also fail the build
+        print("error: %s: %s" % (type(e).__name__, e), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

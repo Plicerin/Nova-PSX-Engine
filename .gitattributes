@@ -1,0 +1,11 @@
+# Normalize line endings: store text as LF in the repo.
+* text=auto eol=lf
+# Windows-native scripts stay CRLF on checkout.
+*.ps1 text eol=crlf
+# Binary assets git shouldn't touch.
+*.png binary
+*.bmp binary
+*.wav binary
+*.meshbin binary
+*.texbin binary
+*.lvlbin binary
