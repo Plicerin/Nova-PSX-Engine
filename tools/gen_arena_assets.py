@@ -212,10 +212,10 @@ def build_arena():
                        [(0, 1 - k / 3), (0, 1 - (k + 1) / 3),
                         (1, 1 - (k + 1) / 3), (1, 1 - k / 3)],
                        (nx, 0, nz))
-    # central cryo pod (octa-ish stacked boxes)
-    o.box("plate", 0, 0.5, 0.5, 1.6, 1.0, 1.6, 1)
-    o.box("screen", 0, 1.4, 0.5, 1.1, 0.8, 1.1, 1)
-    o.box("plate", 0, 2.0, 0.5, 1.4, 0.3, 1.4, 1)
+    # cryo pod against the north wall (keeps the combat lane clear)
+    o.box("plate", 0, 0.5, 6.6, 1.6, 1.0, 1.6, 1)
+    o.box("screen", 0, 1.4, 6.6, 1.1, 0.8, 1.1, 1)
+    o.box("plate", 0, 2.0, 6.6, 1.4, 0.3, 1.4, 1)
     # scattered crates
     for (x, z, s) in [(-5, -4, 1.0), (-4.2, -4.6, 1.0), (-4.6, -3.4, 1.0),
                       (5.2, 3.5, 1.2), (4.6, -5.0, 0.9)]:

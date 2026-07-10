@@ -11,6 +11,7 @@
 #include "engine/input/input.h"
 #include "engine/debug/debug.h"
 #include "engine/anim/anim.h"
+#include "game/src/combat.h"
 
 static Level*         s_level     = nullptr;
 static LevelObject*   s_gem       = nullptr;
@@ -82,6 +83,8 @@ void Demo_Init(Level* level) {
             s_spin_obj = &level->objects[i];
     }
 
+    if (Combat_Active()) Combat_Init();
+
     s_robot_rig    = Rig_Find("robot");
     s_robot_idle   = Anim_Find("robot_idle");
     s_robot_attack = Anim_Find("robot_attack");
@@ -134,6 +137,8 @@ void Demo_Update() {
 
     if (s_blip && Pad_Pressed(PAD_CROSS))
         Audio_Play(s_blip, 100, 0, 4096);
+
+    if (Combat_Active()) { Combat_Update(); return; }
 
     // Robot: E/Triangle = attack, Q/Square = defend, back to idle when done.
     if (s_robot_rig) {
@@ -195,7 +200,9 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Rc_DrawMesh(rc, o->mesh_ptr, &m);
     }
 
-    if (s_robot_rig) {
+    if (Combat_Active()) {
+        Combat_Render(rc);
+    } else if (s_robot_rig) {
         Mat rm;
         Gte_RotMatrix(&s_robot_rot, &rm);
         rm.t[0] = s_robot_pos.vx;
@@ -203,7 +210,7 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         rm.t[2] = s_robot_pos.vz;
         Anim_Draw(rc, s_robot_rig, &s_robot_anim, &rm);
     }
-    if (s_shard_rig) {
+    if (!Combat_Active() && s_shard_rig) {
         Mat sm;
         Gte_RotMatrix(&s_shard_rot, &sm);
         sm.t[0] = s_shard_pos.vx;
@@ -225,6 +232,8 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
 }
 
 void Demo_DrawUI(Framebuffer* fb) {
+    if (Combat_Active()) { Combat_DrawUI(fb); return; }
+
     const char* title = "PSX-AUTHENTIC ENGINE";
     const char* help  = "[SPACE] BLIP  [TAB] FREECAM  [F1] DEBUG  [WASD] MOVE";
     int tx = (fb->w - (int)strlen(title) * 8) / 2;

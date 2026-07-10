@@ -14,6 +14,7 @@
 #include "engine/renderer/framebuffer.h"
 #include "engine/renderer/render.h"
 #include "engine/debug/debug.h"
+#include "game/src/combat.h"
 #include "game/src/demo_scene.h"
 
 // Framebuffer ~1.2 MB, RenderContext ~4 MB: must be static, never stack.
@@ -85,6 +86,11 @@ int main(int argc, char** argv) {
             s_clip = argv[++i];
         } else if (strcmp(argv[i], "--clip-at") == 0 && i + 1 < argc) {
             s_clip_at = (i64)strtoll(argv[++i], nullptr, 10);
+        } else if (strcmp(argv[i], "--combat") == 0) {
+            Combat_SetActive(true);
+        } else if (strcmp(argv[i], "--combat-auto") == 0) {
+            Combat_SetActive(true);
+            Combat_SetAuto(true);
         } else if (strcmp(argv[i], "--noui") == 0) {
             s_noui = true;
         } else if (strcmp(argv[i], "--wire") == 0) {
