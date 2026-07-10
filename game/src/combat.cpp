@@ -9,6 +9,7 @@
 #include "engine/debug/debug.h"
 #include "engine/input/input.h"
 #include "engine/math/fixed.h"
+#include "game/src/fx.h"
 
 // ------------------------------------------------------------------ actors
 
@@ -95,6 +96,7 @@ void Combat_Init() {
 
     StartClip(&s_player, s_player.idle);
     StartClip(&s_enemy, s_enemy.idle);
+    Fx_Init();
     memset(s_floats, 0, sizeof(s_floats));
     s_phase = PH_INTRO;
     s_timer = 100;
@@ -116,6 +118,14 @@ static void DealDamage(Fighter* from, Fighter* to, int base, int spread,
     if (to->hp < 0) to->hp = 0;
     if (to->hit) StartClip(to, to->hit);
     AddFloat(dmg, anchor_x, anchor_y, halved);
+
+    LVec chest = to->pos;
+    chest.vy -= 280;                          // ~1.1 m up (y down)
+    if (halved)
+        Fx_Burst(chest, 6, 8, 110, 180, 255);   // dampened blue block sparks
+    else
+        Fx_Burst(chest, 12, 14, 255, 210, 130); // impact sparks
+    Fx_Shake(14 + dmg, 12);
 }
 
 void Combat_Update() {
@@ -197,7 +207,15 @@ void Combat_Update() {
     case PH_VICTORY:
     case PH_DEFEAT: {
         Fighter* loser = (s_phase == PH_VICTORY) ? &s_enemy : &s_player;
-        if (loser->sink < 300) loser->sink += 3;   // sink into the water
+        if (loser->sink < 300) {
+            if (loser->sink == 0) {              // breaking the surface
+                Fx_Splash(loser->pos, 20);
+                Fx_Shake(26, 16);
+            } else if (loser->sink % 36 == 0) {  // churn while going under
+                Fx_Splash(loser->pos, 5);
+            }
+            loser->sink += 3;
+        }
         if (Pad_Pressed(PAD_CROSS) || Pad_Pressed(PAD_START)) Combat_Init();
         break;
     }

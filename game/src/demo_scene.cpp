@@ -12,6 +12,7 @@
 #include "engine/debug/debug.h"
 #include "engine/anim/anim.h"
 #include "game/src/combat.h"
+#include "game/src/fx.h"
 
 static Level*         s_level     = nullptr;
 static LevelObject*   s_gem       = nullptr;
@@ -83,6 +84,7 @@ void Demo_Init(Level* level) {
             s_spin_obj = &level->objects[i];
     }
 
+    Fx_Init();
     if (Combat_Active()) Combat_Init();
 
     s_robot_rig    = Rig_Find("robot");
@@ -110,6 +112,7 @@ void Demo_Init(Level* level) {
 void Demo_Update() {
     if (!s_level) return;
     s_tick++;
+    Fx_Update();
 
     if (Pad_Held(PAD_L1)) s_yaw -= kTurnRate;
     if (Pad_Held(PAD_R1)) s_yaw += kTurnRate;
@@ -178,6 +181,11 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
 
     // Seed the free cam while inactive so toggling starts from the current view.
     if (!Debug_FreeCamActive()) Debug_SyncFreeCam(&scene_cam);
+    if (!Debug_FreeCamActive()) {              // combat screen shake
+        LVec sh = Fx_CamOffset();
+        scene_cam.pos.vx += sh.vx;
+        scene_cam.pos.vy += sh.vy;
+    }
     const Camera* cam = Debug_FreeCamActive() ? Debug_FreeCam() : &scene_cam;
 
     Rc_Begin(rc, cam);
@@ -218,6 +226,8 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         sm.t[2] = s_shard_pos.vz;
         Anim_Draw(rc, s_shard_rig, &s_shard_anim, &sm);
     }
+
+    Fx_Render(rc);
 
     // Glow billboard 0.8 m above the gem, opposite bob phase, additive.
     if (s_gem && s_orb) {
