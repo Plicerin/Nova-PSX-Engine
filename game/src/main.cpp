@@ -34,6 +34,7 @@ static i32  s_spin    = 0;      // --spin N: turntable deg/tick for the characte
 static i64  s_freecam_at = -1;  // --freecam-at N: toggle freecam at frame N (test)
 static const char* s_clip = nullptr;  // --clip NAME [--clip-at N]: play robot clip
 static i64  s_clip_at = 0;
+static i64  s_inspect_at = -1;  // --inspect-at N: toggle status screen (test)
 
 static void AudioCallback(i16* out_stereo, int frames, void* user) {
     (void)user;
@@ -86,6 +87,8 @@ int main(int argc, char** argv) {
             s_clip = argv[++i];
         } else if (strcmp(argv[i], "--clip-at") == 0 && i + 1 < argc) {
             s_clip_at = (i64)strtoll(argv[++i], nullptr, 10);
+        } else if (strcmp(argv[i], "--inspect-at") == 0 && i + 1 < argc) {
+            s_inspect_at = (i64)strtoll(argv[++i], nullptr, 10);
         } else if (strcmp(argv[i], "--combat") == 0) {
             Combat_SetActive(true);
         } else if (strcmp(argv[i], "--combat-auto") == 0) {
@@ -183,6 +186,7 @@ int main(int argc, char** argv) {
         }
 
         if (frame_index == s_freecam_at) Debug_ToggleFreeCam(&g_rc);
+        if (frame_index == s_inspect_at) Combat_ToggleInspect();
         if (s_clip && frame_index == s_clip_at) Demo_PlayClip(s_clip);
         if (ShotAtFrame(frame_index)) Debug_RequestScreenshot();
 

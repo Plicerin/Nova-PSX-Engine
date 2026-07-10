@@ -180,6 +180,9 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     scene_cam.near_z = 40;                // ~16 cm
     scene_cam.far_z  = 20 * WORLD_SCALE;  // 20 m
 
+    // Status screen overrides the scene camera with its portrait framing.
+    if (Combat_InspectActive()) scene_cam = *Combat_InspectCam();
+
     // Seed the free cam while inactive so toggling starts from the current view.
     if (!Debug_FreeCamActive()) Debug_SyncFreeCam(&scene_cam);
     if (!Debug_FreeCamActive()) {              // combat screen shake

@@ -47,8 +47,11 @@ static Phase    s_phase = PH_OFF;
 static i32      s_timer = 0;
 static int      s_cursor = 0;          // 0 = ATTACK, 1 = DEFEND
 static u32      s_seed = 0x1234567;
-static Fighter  s_player, s_enemy;
+static Fighter  s_player, s_enemy, s_companion;
 static FloatNum s_floats[4];
+static bool     s_inspect = false;     // status screen (battle frozen)
+static i32      s_inspect_yaw = 0;     // turntable angle, PS1 units
+static Camera   s_inspect_cam;
 
 // Screen anchors for floating damage (internal 320x180, camera is fixed
 // in combat_stage.json — see level file).
@@ -75,15 +78,23 @@ void Combat_Init() {
     if (!s_active) return;
     Debug_AllowFreeCam(false);   // TAB belongs to the combat menu
     s_player = {};
-    s_player.name    = "UNIT-7";
-    s_player.rig     = Rig_Find("robot");
-    s_player.idle    = Anim_Find("robot_idle");
-    s_player.attack  = Anim_Find("robot_attack");
-    s_player.defend  = Anim_Find("robot_defend");
-    s_player.hit     = Anim_Find("robot_hit");
+    s_player.name    = "ASTRA";
+    s_player.rig     = Rig_Find("astro");
+    s_player.idle    = Anim_Find("astro_idle");
+    s_player.attack  = Anim_Find("astro_attack");
+    s_player.defend  = Anim_Find("astro_defend");
+    s_player.hit     = Anim_Find("astro_hit");
     s_player.pos     = { (i32)(-2.3 * 256), 0, (i32)(0.5 * 256) };
     s_player.rot     = { 0, (i16)1024, 0 };          // face +x (the enemy)
     s_player.max_hp  = s_player.hp = 80;
+
+    // Robot companion: stands with the diver, out of the duel for now.
+    s_companion = {};
+    s_companion.rig  = Rig_Find("robot");
+    s_companion.idle = Anim_Find("robot_idle");
+    s_companion.pos  = { (i32)(-3.6 * 256), 0, (i32)(1.8 * 256) };
+    s_companion.rot  = { 0, (i16)(1024 + 200), 0 };
+    StartClip(&s_companion, s_companion.idle);
 
     s_enemy = {};
     s_enemy.name     = "SHARD";
@@ -130,11 +141,47 @@ static void DealDamage(Fighter* from, Fighter* to, int base, int spread,
     Fx_Shake(14 + dmg, 12);
 }
 
+bool Combat_InspectActive() { return s_active && s_inspect; }
+
+void Combat_ToggleInspect() {
+    s_inspect = !s_inspect;
+    if (s_inspect) s_inspect_yaw = 0;
+    else s_player.rot = { 0, (i16)1024, 0 };
+}
+
+const Camera* Combat_InspectCam() {
+    // In front of the player at chest height, looking straight at them.
+    s_inspect_cam.pos = { s_player.pos.vx, -235,
+                          s_player.pos.vz - (i32)(3.4 * 256) };
+    s_inspect_cam.rot = { 0, 0, 0 };
+    s_inspect_cam.near_z = 40;
+    s_inspect_cam.far_z = 20 * 256;
+    return &s_inspect_cam;
+}
+
 void Combat_Update() {
     if (!s_active || s_phase == PH_OFF) return;
 
+    // Status screen: freeze the battle, spin the character.
+    if (s_inspect) {
+        s_inspect_yaw = (s_inspect_yaw + 14) & (ANGLE_FULL - 1);
+        s_player.rot.vy = (i16)((2048 + s_inspect_yaw) & (ANGLE_FULL - 1));
+        Anim_Update(&s_player.anim, 16);
+        if (Plat_KeyPressed(PK_I) || Pad_Pressed(PAD_CIRCLE)) {
+            s_inspect = false;
+            s_player.rot = { 0, (i16)1024, 0 };   // back to facing the enemy
+        }
+        return;
+    }
+    if (s_phase == PH_MENU && Plat_KeyPressed(PK_I)) {
+        s_inspect = true;
+        s_inspect_yaw = 0;
+        return;
+    }
+
     Anim_Update(&s_player.anim, 16);
     Anim_Update(&s_enemy.anim, 16);
+    Anim_Update(&s_companion.anim, 16);
     for (int i = 0; i < 4; i++)
         if (s_floats[i].ticks > 0) { s_floats[i].ticks--; s_floats[i].y--; }
 
@@ -242,8 +289,13 @@ static void DrawFighter(RenderContext* rc, Fighter* f) {
 
 void Combat_Render(RenderContext* rc) {
     if (!s_active || s_phase == PH_OFF) return;
+    if (s_inspect) {                    // status screen: character only
+        DrawFighter(rc, &s_player);
+        return;
+    }
     DrawFighter(rc, &s_player);
     DrawFighter(rc, &s_enemy);
+    DrawFighter(rc, &s_companion);
 }
 
 // --------------------------------------------------------------------- HUD
@@ -283,6 +335,18 @@ static void DrawCentered(Framebuffer* fb, int y, u8 r, u8 g, u8 b,
 void Combat_DrawUI(Framebuffer* fb) {
     if (!s_active || s_phase == PH_OFF) return;
 
+    if (s_inspect) {                            // status screen panel
+        FillRect(fb, 6, 6, 108, 74, 8, 18, 20);
+        Debug_Text(fb, 12, 12, 150, 240, 235, "ASTRA");
+        Debug_Text(fb, 12, 26, 190, 200, 200, "FLIGHT CREW");
+        Debug_Text(fb, 12, 42, 190, 200, 200, "HP  %d/%d",
+                   s_player.hp, s_player.max_hp);
+        Debug_Text(fb, 12, 54, 190, 200, 200, "ATK 14-22");
+        Debug_Text(fb, 12, 66, 190, 200, 200, "DEF BRACE 1/2");
+        Debug_Text(fb, 12, fb->h - 14, 140, 160, 160, "[I] BACK");
+        return;
+    }
+
     DrawHpBar(fb, 8, 6, &s_player);
     DrawHpBar(fb, 216 - 8, 6, &s_enemy);
 
@@ -290,6 +354,7 @@ void Combat_DrawUI(Framebuffer* fb) {
         DrawCentered(fb, 80, 120, 235, 255, "RIFT BREACH // ENGAGE");
 
     if (s_phase == PH_MENU) {
+        Debug_Text(fb, 8, 134, 120, 140, 140, "[I] STATUS");
         FillRect(fb, 6, 146, 76, 28, 10, 20, 22);
         Debug_Text(fb, 12, 150, s_cursor == 0 ? 255 : 140,
                    s_cursor == 0 ? 240 : 160, 120, "%cATTACK",

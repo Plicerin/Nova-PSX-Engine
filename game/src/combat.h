@@ -14,3 +14,9 @@ void Combat_Init();               // resolve rigs/clips, reset the battle
 void Combat_Update();             // one fixed 60 Hz tick (input+logic+anims)
 void Combat_Render(RenderContext* rc);
 void Combat_DrawUI(Framebuffer* fb);
+
+// Status/inspect screen ([I] in the action menu): freezes the battle and
+// shows the player character on a turntable with a stats panel.
+bool Combat_InspectActive();
+const Camera* Combat_InspectCam();
+void Combat_ToggleInspect();      // test hook (same as pressing I)
