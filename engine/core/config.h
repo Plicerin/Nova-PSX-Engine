@@ -36,6 +36,12 @@ struct EngineConfig {
     bool vertex_snapping     = true;  // ON = snap to subpixel_bits grid (default integer)
     int  subpixel_bits       = 0;     // 0, 1, 2 or 4 -> 1, 1/2, 1/4, 1/16 pixel
     bool wireframe           = false;
+    bool draw_semitrans      = true;  // OFF = skip semi-transparent prims (water etc.)
+
+    // --- PS1.5 "wet" hybrid extras (off = pure PS1) ---
+    bool bloom            = false;  // low-res bright-pass glow before upscale
+    int  bloom_threshold  = 150;    // luma above this blooms (0..255)
+    int  bloom_strength   = 160;    // add-back strength (256 = 1.0)
 
     // --- camera defaults (spec 8) ---
     i32  fov_deg = 70;                // horizontal FOV in degrees

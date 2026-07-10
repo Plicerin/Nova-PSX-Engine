@@ -29,13 +29,14 @@ from common import psx_formats as pf
 from texture_importer.texture_importer import import_textures
 from mesh_importer.mesh_importer import import_mesh
 from level_packer.level_packer import pack_level
+from anim_compiler.anim_compiler import compile_rig
 from asset_manifest_builder.asset_manifest_builder import build_manifest
 
 AUDIO_BUDGET_BYTES = 512 * 1024
 
 
 def _check_unique_names(config):
-    for kind in ("textures", "meshes", "sounds", "levels"):
+    for kind in ("textures", "meshes", "sounds", "levels", "rigs"):
         seen = set()
         for e in config.get(kind, []):
             if "name" not in e or "source" not in e:
@@ -65,7 +66,7 @@ def run_build(root, config_path):
     if os.path.isfile(local_path):
         with open(local_path, "r", encoding="utf-8") as f:
             local = json.load(f)
-        for key in ("textures", "meshes", "sounds", "levels"):
+        for key in ("textures", "meshes", "sounds", "levels", "rigs"):
             config.setdefault(key, []).extend(local.get(key, []))
         print("merged local overlay: %s" % os.path.basename(local_path))
     _check_unique_names(config)
@@ -75,7 +76,9 @@ def run_build(root, config_path):
     mesh_dir = os.path.join(out_root, "meshes")
     level_dir = os.path.join(out_root, "levels")
     audio_dir = os.path.join(out_root, "audio")
-    for d in (tex_dir, mesh_dir, level_dir, audio_dir):
+    rig_dir = os.path.join(out_root, "rigs")
+    anim_dir = os.path.join(out_root, "anims")
+    for d in (tex_dir, mesh_dir, level_dir, audio_dir, rig_dir, anim_dir):
         os.makedirs(d, exist_ok=True)
 
     rows = []   # (kind, name, out path rel to root, bytes, note)
@@ -131,6 +134,18 @@ def run_build(root, config_path):
                        os.path.join(level_dir, entry["name"] + ".lvlbin"))
         rows.append(("level", entry["name"], rel(s["file"]), s["file_bytes"],
                      "%d objects" % s["nobjects"]))
+
+    # 5b. rigs + anim clips
+    if config.get("rigs"):
+        print("== rigs ==")
+        for entry in config["rigs"]:
+            s = compile_rig(entry, rig_dir, anim_dir, source_root=root)
+            rows.append(("rig", s["name"], rel(s["file"]), s["file_bytes"],
+                         "%d bones, %d clips" % (s["nbones"], len(s["clips"]))))
+            for c in s["clips"]:
+                rows.append(("anim", c["name"], rel(c["file"]), c["file_bytes"],
+                             "%d keys @ %d ms%s" % (c["nkeys"], c["key_ms"],
+                                                    " loop" if c["loop"] else "")))
 
     # 6. manifest last
     print("== manifest ==")

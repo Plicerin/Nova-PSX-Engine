@@ -140,11 +140,26 @@ def _face_uv_to_texels(uvs_src, w, h):
             tu = int(round(u * (w - 1)))
             tv = int(round((1.0 - v) * (h - 1)))
             out.append((max(0, min(255, tu)), max(0, min(255, tv))))
-    else:                              # tiling: scale by w/h and wrap
-        for (u, v) in uvs_src:
-            tu = int(round(u * w)) & 255
-            tv = int(round((1.0 - v) * h)) & 255
-            out.append((tu, tv))
+    else:
+        # Tiling: scale to texels, then rebase the whole face into its first
+        # tile so spans stay ascending. Wrapping corners independently (&255)
+        # breaks faces that cross a 256-texel boundary: their span becomes
+        # descending and the rasterizer smears the whole texture backwards
+        # across the face (dotted-artifact columns). The engine samples with
+        # a power-of-two mask, so texel coords may exceed w/h — only u8 range
+        # (255) limits us, which holds for textures up to 128 px.
+        tus = [int(round(u * w)) for (u, v) in uvs_src]
+        tvs = [int(round((1.0 - v) * h)) for (u, v) in uvs_src]
+        bu = (min(tus) // w) * w
+        bv = (min(tvs) // h) * h
+        tus = [t - bu for t in tus]
+        tvs = [t - bv for t in tvs]
+        if max(tus) > 255 or max(tvs) > 255:
+            raise ValueError(
+                "face UV span does not fit u8 texel coords after rebase "
+                "(texture too wide for tiling, or face spans >1 repeat): "
+                "u=%s v=%s (tex %dx%d)" % (tus, tvs, w, h))
+        out = list(zip(tus, tvs))
     return out
 
 
@@ -160,6 +175,25 @@ def import_mesh(entry, textures_dir="build/assets/textures",
     scale = float(entry.get("scale", 1.0))
     texture = entry.get("texture")
     materials = entry.get("materials")
+    # Optional per-mesh primitive flags (applied to all faces).
+    semitrans = bool(entry.get("semitrans", False))
+    semi_mode = int(entry.get("semi_mode", 0)) & 3
+    doublesided = bool(entry.get("doublesided", False))
+    sort_bias = int(entry.get("sort_bias", 0))
+    # Optional flat vertex color (default 128 = neutral; texture modulation
+    # treats 128 as 1.0, untextured prims show it directly).
+    color = tuple(pf.clamp_u8(c) for c in entry.get("color", (128, 128, 128)))
+    if len(color) != 3:
+        raise pf.PackError("mesh '%s': color must be [r,g,b]" % name)
+    prim_flags = 0
+    if semitrans:
+        prim_flags |= pf.MPF_SEMITRANS | (semi_mode << pf.MPF_SEMIMODE_SHIFT)
+    if doublesided:
+        prim_flags |= pf.MPF_DOUBLESIDED
+    if bool(entry.get("uv_scroll", False)):
+        prim_flags |= pf.MPF_UVSCROLL
+    if bool(entry.get("matte", False)):
+        prim_flags |= pf.MPF_MATTE
 
     path = os.path.join(source_root, src)
     if not os.path.isfile(path):
@@ -268,12 +302,12 @@ def import_mesh(entry, textures_dir="build/assets/textures",
 
         prims.append({
             "type": ptype,
-            "flags": 0,
+            "flags": prim_flags,
             "tex_index": tex_index,
             "vi": vi,
             "uv": uvs,
-            "rgb": [(128, 128, 128)] * 4,
-            "sort_bias": 0,
+            "rgb": [color] * 4,
+            "sort_bias": sort_bias,
         })
         tri_count += 2 if is_quad else 1
 

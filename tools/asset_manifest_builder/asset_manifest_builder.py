@@ -17,11 +17,14 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from common import psx_formats as pf
+from anim_compiler.anim_compiler import rig_clip_names
 
 TEX_DIR = "build/assets/textures"
 MESH_DIR = "build/assets/meshes"
 AUDIO_DIR = "build/assets/audio"
 LEVEL_DIR = "build/assets/levels"
+RIG_DIR = "build/assets/rigs"
+ANIM_DIR = "build/assets/anims"
 
 
 def manifest_records(config, root):
@@ -53,6 +56,10 @@ def manifest_records(config, root):
             loop_whole=1 if s.get("loop", False) else 0)
     for l in config.get("levels", []):
         add(pf.ASSET_LEVEL, l["name"], "%s/%s.lvlbin" % (LEVEL_DIR, l["name"]))
+    for r in config.get("rigs", []):
+        add(pf.ASSET_RIG, r["name"], "%s/%s.rigbin" % (RIG_DIR, r["name"]))
+        for cname in rig_clip_names(r, source_root=root):
+            add(pf.ASSET_ANIM, cname, "%s/%s.animbin" % (ANIM_DIR, cname))
     return records
 
 

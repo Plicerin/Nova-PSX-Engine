@@ -7,6 +7,7 @@
 #include <cstring>
 
 bool g_debug_draworder = false;
+SpecularParams g_specular = { false, 190, 220, 240, 2 };
 
 // Per-mesh transform scratch. u16 vertex indices can never exceed this cap,
 // so scratch reads are inherently in-bounds even on corrupt index data.
@@ -16,6 +17,7 @@ static i32 s_sy[RC_MAX_VERTS];
 static i32 s_sz[RC_MAX_VERTS];
 static i32 s_p[RC_MAX_VERTS];
 static u8  s_lit[RC_MAX_VERTS][3];
+static u8  s_spec[RC_MAX_VERTS][3];   // additive specular highlight, per vertex
 
 void Rc_Init(RenderContext* rc) {
     if (!rc) return;
@@ -66,6 +68,21 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         Gte_RotTransPers(&mesh->verts[i], &s_sx[i], &s_sy[i], &s_sz[i], &s_p[i]);
 
     const bool lit = rc->light.enabled && mesh->norms != nullptr;
+    const bool spec_on = lit && g_specular.enabled;
+    // Half-vector for infinite-viewer Blinn specular, in VIEW space (constant
+    // per object): H = normalize((-lightDir_view) + (0,0,-1)).  Viewer looks +z,
+    // so surface->camera is (0,0,-1) in view space.
+    i32 Hx = 0, Hy = 0, Hz = 0;
+    if (spec_on) {
+        LVec ldv;
+        Gte_ApplyRot(&rc->view, &rc->light.dir, &ldv);   // incoming light, view space
+        i32 hx = -ldv.vx, hy = -ldv.vy, hz = -ldv.vz - FX_ONE;
+        u32 hl2 = (u32)((i64)hx * hx + (i64)hy * hy + (i64)hz * hz);
+        u32 hl = IsqrtU32(hl2);
+        if (hl) { Hx = (i32)(((i64)hx << FX_SHIFT) / hl);
+                  Hy = (i32)(((i64)hy << FX_SHIFT) / hl);
+                  Hz = (i32)(((i64)hz << FX_SHIFT) / hl); }
+    }
     if (lit) {
         // Light dir into MODEL space so normals need no per-vertex rotation.
         Mat mrot_t;
@@ -74,6 +91,7 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         Gte_ApplyRot(&mrot_t, &rc->light.dir, &ld);
         const int amb[3] = { rc->light.amb_r, rc->light.amb_g, rc->light.amb_b };
         const int dif[3] = { rc->light.dif_r, rc->light.dif_g, rc->light.dif_b };
+        const int spc[3] = { g_specular.r, g_specular.g, g_specular.b };
         for (u32 i = 0; i < mesh->nverts; i++) {
             const SVec* n = &mesh->norms[i];
             i32 dot = (i32)n->vx * ld.vx + (i32)n->vy * ld.vy + (i32)n->vz * ld.vz;
@@ -81,6 +99,25 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
             for (int c = 0; c < 3; c++) {
                 int L = amb[c] + ((dif[c] * I) >> 12);
                 s_lit[i][c] = (u8)(L > 255 ? 255 : L);
+            }
+            if (spec_on) {
+                LVec nv;
+                Gte_ApplyRot(&mv, n, &nv);               // normal into view space
+                u32 nl2 = (u32)((i64)nv.vx * nv.vx + (i64)nv.vy * nv.vy +
+                                (i64)nv.vz * nv.vz);
+                u32 nl = IsqrtU32(nl2);
+                i32 s = 0;
+                if (nl) {
+                    i64 raw = (i64)nv.vx * Hx + (i64)nv.vy * Hy + (i64)nv.vz * Hz;
+                    s = (i32)(raw / (i64)nl);            // cos(N,H) in 4.12
+                    s = ClampI32(s, 0, FX_ONE);
+                    for (int k = 0; k < g_specular.shininess; k++)
+                        s = (s * s) >> FX_SHIFT;          // ^(2^shininess)
+                }
+                for (int c = 0; c < 3; c++)
+                    s_spec[i][c] = (u8)((spc[c] * s) >> FX_SHIFT);
+            } else {
+                s_spec[i][0] = s_spec[i][1] = s_spec[i][2] = 0;
             }
         }
     }
@@ -92,6 +129,7 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
 
     for (u32 pi = 0; pi < mesh->nprims; pi++) {
         const MeshPrim* mp = &mesh->prims[pi];
+        if (!g_config.draw_semitrans && (mp->flags & MPF_SEMITRANS)) continue;
         const int nv = (mp->type >= MP_F4) ? 4 : 3;
 
         u16 idx[4] = { 0, 0, 0, 0 };
@@ -136,6 +174,10 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
                 }
                 if (fog_on)
                     v += ((fogc[c] - v) * s_p[idx[k]]) >> 12;
+                if (lit && !(mp->flags & MPF_MATTE)) {
+                    v += s_spec[idx[k]][c];   // additive wet highlight, on top of fog
+                    if (v > 255) v = 255;
+                }
                 col[k][c] = (u8)v;
             }
         }
@@ -150,6 +192,27 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         if ((ptype & 2) && !tex) ptype &= 1;      // textured with no texture -> flat/gouraud
         u8 flags = (mp->flags & MPF_SEMITRANS) ? PF_SEMITRANS : 0;
         u8 semi_mode = (u8)((mp->flags >> MPF_SEMIMODE_SHIFT) & 3);
+
+        // UV scroll (water etc.): shift texel coords, then rebase the prim's
+        // span to keep it ascending — the raster wraps per-sample via the
+        // power-of-two texture mask, so values above tex->w are fine.
+        i32 suv[4][2];
+        for (int k = 0; k < nv; k++) {
+            suv[k][0] = mp->uv[k][0];
+            suv[k][1] = mp->uv[k][1];
+        }
+        if ((mp->flags & MPF_UVSCROLL) && tex) {
+            i32 minu = 0x7FFFFFFF, minv = 0x7FFFFFFF;
+            for (int k = 0; k < nv; k++) {
+                suv[k][0] += rc->uvscroll_u;
+                suv[k][1] += rc->uvscroll_v;
+                if (suv[k][0] < minu) minu = suv[k][0];
+                if (suv[k][1] < minv) minv = suv[k][1];
+            }
+            const i32 bu = minu & ~(i32)(tex->w - 1);  // floor to tile multiple
+            const i32 bv = minv & ~(i32)(tex->h - 1);
+            for (int k = 0; k < nv; k++) { suv[k][0] -= bu; suv[k][1] -= bv; }
+        }
 
         const int ntri = (nv == 4) ? 2 : 1;       // quad -> two tris, PS1 GPU split
         for (int ti = 0; ti < ntri; ti++) {
@@ -170,8 +233,8 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
                 p->v[k].r = col[mk][0];
                 p->v[k].g = col[mk][1];
                 p->v[k].b = col[mk][2];
-                p->v[k].u = mp->uv[mk][0];
-                p->v[k].v = mp->uv[mk][1];
+                p->v[k].u = (u8)suv[mk][0];
+                p->v[k].v = (u8)suv[mk][1];
             }
             Ot_Add(&rc->ot, p, otz);
             rc->stats.prims_emitted++;

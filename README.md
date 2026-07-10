@@ -97,6 +97,7 @@ Debug (keyboard function keys — kept off the gameplay map):
 | F10 | cycle internal resolution (320×240 / 320×224 / 368×240 / 512×240 / 640×480) |
 | F11 | cycle scale mode (integer / fit / stretch) |
 | F12 | screenshot (raw + upscaled) |
+| T | semi-transparent geometry on/off (water etc.) |
 | Tab | free camera (fly with WASD + R/F up/down, arrows look) |
 | P / O | pause simulation / step one frame |
 | Alt+Enter | fullscreen |

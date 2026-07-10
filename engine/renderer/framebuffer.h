@@ -26,6 +26,10 @@ void Fb_Init(Framebuffer* fb, int w, int h);
 void Fb_Clear(Framebuffer* fb, u8 r, u8 g, u8 b);   // clear color also quantized
 void Fb_ClearZ();                                    // reset z-buffer to 0xFFFF
 
+// PS1.5 hybrid bloom: extract pixels brighter than `threshold`, blur, and add
+// back at `strength`/256. Operates on the low-res framebuffer before upscale.
+void Fb_Bloom(Framebuffer* fb, int threshold, int strength);
+
 inline u8 ClampU8i(int v) { return (u8)(v < 0 ? 0 : (v > 255 ? 255 : v)); }
 
 // Quantize one 8-bit channel with dither offset d (raw kernel value).

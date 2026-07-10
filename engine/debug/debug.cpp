@@ -88,10 +88,12 @@ static void FreeCamFly(i32 dt_ms) {
     if (rspd < 1) rspd = 1;
 
     i32 yaw = cam->rot.vy, pitch = cam->rot.vx;
+    // Angles may arrive wrapped to 0..4095 (level packer); clamp needs signed.
+    pitch = ((pitch + ANGLE_FULL / 2) & (ANGLE_FULL - 1)) - ANGLE_FULL / 2;
     if (Plat_KeyHeld(PK_LEFT))  yaw -= rspd;
     if (Plat_KeyHeld(PK_RIGHT)) yaw += rspd;
-    if (Plat_KeyHeld(PK_UP))    pitch -= rspd;
-    if (Plat_KeyHeld(PK_DOWN))  pitch += rspd;
+    if (Plat_KeyHeld(PK_UP))    pitch += rspd;   // positive pitch = look up
+    if (Plat_KeyHeld(PK_DOWN))  pitch -= rspd;
     yaw &= ANGLE_FULL - 1;
     pitch = ClampI32(pitch, -1000, 1000); // stop short of straight up/down
     cam->rot.vy = (i16)yaw;
@@ -110,6 +112,20 @@ static void FreeCamFly(i32 dt_ms) {
     if (Plat_KeyHeld(PK_F) || Plat_KeyHeld(PK_E)) cam->pos.vy += spd;
 }
 
+void Debug_ToggleFreeCam(RenderContext* rc) {
+    s_dbg.freecam_on = !s_dbg.freecam_on;
+    if (s_dbg.freecam_on) {
+        if (s_dbg.synced)  s_dbg.freecam = s_dbg.synced_cam;
+        else if (rc)       s_dbg.freecam = rc->cam; // main never synced yet
+        fprintf(stderr, "[dbg] freecam ON synced=%d pos=%d,%d,%d rot=%d,%d near=%d far=%d\n",
+                (int)s_dbg.synced,
+                s_dbg.freecam.pos.vx, s_dbg.freecam.pos.vy, s_dbg.freecam.pos.vz,
+                (int)s_dbg.freecam.rot.vx, (int)s_dbg.freecam.rot.vy,
+                s_dbg.freecam.near_z, s_dbg.freecam.far_z);
+        fflush(stderr);
+    }
+}
+
 void Debug_Update(RenderContext* rc, i32 dt_ms) {
     if (Plat_KeyPressed(PK_F1))  s_dbg.page = (s_dbg.page + 1) & 3;
     if (Plat_KeyPressed(PK_F2))  g_config.wireframe = !g_config.wireframe;
@@ -120,6 +136,7 @@ void Debug_Update(RenderContext* rc, i32 dt_ms) {
     if (Plat_KeyPressed(PK_F7))  g_config.vertex_snapping = !g_config.vertex_snapping;
     if (Plat_KeyPressed(PK_F8))  g_config.bilinear_filter = !g_config.bilinear_filter;
     if (Plat_KeyPressed(PK_F9))  g_debug_draworder = !g_debug_draworder;
+    if (Plat_KeyPressed(PK_T))   g_config.draw_semitrans = !g_config.draw_semitrans;
     if (Plat_KeyPressed(PK_F10)) g_config.res_mode = (g_config.res_mode + 1) % kResModeCount; // main loop reacts
     if (Plat_KeyPressed(PK_F11)) g_config.scale_mode = (ScaleMode)((g_config.scale_mode + 1) % SCALE_MODE_COUNT);
     if (Plat_KeyPressed(PK_F12)) Debug_RequestScreenshot();
@@ -127,13 +144,7 @@ void Debug_Update(RenderContext* rc, i32 dt_ms) {
     if (Plat_KeyPressed(PK_P)) s_dbg.paused = !s_dbg.paused;
     if (Plat_KeyPressed(PK_O) && s_dbg.paused) s_dbg.step = true;
 
-    if (Plat_KeyPressed(PK_TAB)) {
-        s_dbg.freecam_on = !s_dbg.freecam_on;
-        if (s_dbg.freecam_on) {
-            if (s_dbg.synced)  s_dbg.freecam = s_dbg.synced_cam;
-            else if (rc)       s_dbg.freecam = rc->cam; // main never synced yet
-        }
-    }
+    if (Plat_KeyPressed(PK_TAB)) Debug_ToggleFreeCam(rc);
 
     if (s_dbg.freecam_on) FreeCamFly(dt_ms);
 }
@@ -267,6 +278,10 @@ void Debug_DrawOverlay(Framebuffer* fb, const RenderContext* rc,
                g_config.bilinear_filter ? "[BILIN]" : "",
                g_config.wireframe ? "[WIRE]" : "",
                g_debug_draworder ? "[ORDER]" : "");
+    if (!g_config.draw_semitrans) {
+        y += 9;
+        Debug_Text(fb, 2, y, 96, 220, 255, "[NO SEMITRANS (T)]");
+    }
     y += 9;
     int ix = 2;
     if (s_dbg.freecam_on)

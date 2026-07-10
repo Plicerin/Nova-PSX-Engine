@@ -1,0 +1,11 @@
+{
+  "name": "combat_arena",
+  "objects": [
+    {"mesh": "arena",       "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
+    {"mesh": "arena_water", "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]}
+  ],
+  "camera_start": {"position": [0, 15, -8], "rotation": [56, 0, 0]},
+  "fog": {"enabled": true, "color": [16, 30, 32], "start": 14.0, "end": 40.0},
+  "clear_color": [10, 18, 20],
+  "light": {"enabled": true, "ambient": [70, 84, 82], "diffuse": [205, 218, 205], "direction": [2.5, -4.0, -2.0]}
+}

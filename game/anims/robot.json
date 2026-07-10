@@ -1,0 +1,54 @@
+{
+  "rig": {
+    "name": "robot",
+    "bones": [
+      {"name": "root",  "parent": -1,     "mesh": "robot_chassis", "pos": [0, 0.85, 0]},
+      {"name": "head",  "parent": "root", "mesh": "robot_head",    "pos": [0, 0.20, 0]},
+      {"name": "arm_l", "parent": "root", "mesh": "robot_arm",     "pos": [-0.34, 0.10, 0]},
+      {"name": "arm_r", "parent": "root", "mesh": "robot_arm",     "pos": [0.34, 0.10, 0]}
+    ]
+  },
+  "clips": [
+    {
+      "name": "robot_idle", "loop": true, "key_ms": 420,
+      "keys": [
+        {},
+        {"root": {"pos": [0, 0.06, 0]},
+         "head": {"rot": [0, 18, 0]},
+         "arm_l": {"rot": [7, 0, 0]}, "arm_r": {"rot": [-7, 0, 0]}},
+        {"root": {"pos": [0, 0.09, 0]}, "head": {"rot": [0, 0, 0]}},
+        {"root": {"pos": [0, 0.04, 0]},
+         "head": {"rot": [0, -18, 0]},
+         "arm_l": {"rot": [-7, 0, 0]}, "arm_r": {"rot": [7, 0, 0]}}
+      ]
+    },
+    {
+      "name": "robot_attack", "loop": false, "key_ms": 110,
+      "keys": [
+        {},
+        {"root": {"rot": [0, -14, 0]}, "arm_r": {"rot": [35, 0, 0]},
+         "head": {"rot": [-8, 0, 0]}},
+        {"root": {"rot": [0, 10, 0], "pos": [0, 0, 0.22]},
+         "arm_r": {"rot": [-98, 0, 0]}, "head": {"rot": [6, 0, 0]}},
+        {"root": {"rot": [0, 8, 0], "pos": [0, 0, 0.18]},
+         "arm_r": {"rot": [-90, 0, 0]}},
+        {"root": {"rot": [0, -4, 0]}, "arm_r": {"rot": [-30, 0, 0]}},
+        {}
+      ]
+    },
+    {
+      "name": "robot_defend", "loop": false, "key_ms": 130,
+      "keys": [
+        {},
+        {"arm_l": {"rot": [-55, 0, -20]}, "arm_r": {"rot": [-55, 0, 20]},
+         "head": {"rot": [10, 0, 0]}, "root": {"pos": [0, -0.08, 0]}},
+        {"arm_l": {"rot": [-80, 0, -35]}, "arm_r": {"rot": [-80, 0, 35]},
+         "head": {"rot": [14, 0, 0]}, "root": {"pos": [0, -0.12, 0]}},
+        {"arm_l": {"rot": [-80, 0, -35]}, "arm_r": {"rot": [-80, 0, 35]},
+         "head": {"rot": [14, 0, 0]}, "root": {"pos": [0, -0.12, 0]}},
+        {"arm_l": {"rot": [-20, 0, -8]}, "arm_r": {"rot": [-20, 0, 8]}},
+        {}
+      ]
+    }
+  ]
+}

@@ -23,14 +23,19 @@ static bool IsPow2(u32 v) { return v != 0 && (v & (v - 1)) == 0; }
 static bool NameEq(const char* a, const char* b) { return strncmp(a, b, 32) == 0; }
 
 // ------------------------------------------------------------- registries
-enum { MAX_TEXTURES = 256, MAX_MESHES = 128, MAX_SOUNDS = 128 };
+enum { MAX_TEXTURES = 256, MAX_MESHES = 128, MAX_SOUNDS = 128,
+       MAX_RIGS = 16, MAX_ANIMS = 64 };
 
-static TexInfo s_textures[MAX_TEXTURES];
-static int     s_tex_count = 0;
-static Mesh    s_meshes[MAX_MESHES];
-static int     s_mesh_count = 0;
-static Sample* s_sounds[MAX_SOUNDS];
-static int     s_sound_count = 0;
+static TexInfo  s_textures[MAX_TEXTURES];
+static int      s_tex_count = 0;
+static Mesh     s_meshes[MAX_MESHES];
+static int      s_mesh_count = 0;
+static Sample*  s_sounds[MAX_SOUNDS];
+static int      s_sound_count = 0;
+static Rig      s_rigs[MAX_RIGS];
+static int      s_rig_count = 0;
+static AnimClip s_anims[MAX_ANIMS];
+static int      s_anim_count = 0;
 
 const TexInfo* Tex_Find(const char* name) {
     for (int i = 0; i < s_tex_count; i++)
@@ -47,6 +52,18 @@ const Mesh* Mesh_Find(const char* name) {
 Sample* Sound_Find(const char* name) {
     for (int i = 0; i < s_sound_count; i++)
         if (NameEq(s_sounds[i]->name, name)) return s_sounds[i];
+    return nullptr;
+}
+
+const Rig* Rig_Find(const char* name) {
+    for (int i = 0; i < s_rig_count; i++)
+        if (NameEq(s_rigs[i].name, name)) return &s_rigs[i];
+    return nullptr;
+}
+
+const AnimClip* Anim_Find(const char* name) {
+    for (int i = 0; i < s_anim_count; i++)
+        if (NameEq(s_anims[i].name, name)) return &s_anims[i];
     return nullptr;
 }
 
@@ -68,10 +85,15 @@ static void ResetRegistries() {
         free(m->tex_names);
         free((void*)m->tex);
     }
+    for (int i = 0; i < s_rig_count; i++)  free(s_rigs[i].bones);
+    for (int i = 0; i < s_anim_count; i++) free(s_anims[i].keys);
     memset(s_meshes, 0, sizeof(s_meshes));
     memset(s_textures, 0, sizeof(s_textures));
     memset(s_sounds, 0, sizeof(s_sounds));
+    memset(s_rigs, 0, sizeof(s_rigs));
+    memset(s_anims, 0, sizeof(s_anims));
     s_tex_count = s_mesh_count = s_sound_count = 0;
+    s_rig_count = s_anim_count = 0;
 }
 
 // ------------------------------------------------------------- .texbin
@@ -337,6 +359,146 @@ static bool LoadMeshFile(const char* path) {
     return ok;
 }
 
+// ------------------------------------------------------------- .rigbin
+static const u32 kRigHeaderSize = 44;
+static const u32 kRigBoneSize   = 56;
+
+static bool LoadRigFile(const char* path) {
+    u32 size = 0;
+    u8* buf = Plat_ReadFile(path, &size);
+    if (!buf) {
+        fprintf(stderr, "[assets] cannot read rig: %s\n", path);
+        return false;
+    }
+    bool ok = false;
+    do {
+        if (size < kRigHeaderSize || memcmp(buf, "PXRG", 4) != 0) {
+            fprintf(stderr, "[assets] %s: not a PXRG file\n", path);
+            break;
+        }
+        if (RdU32(buf + 4) != 1) {
+            fprintf(stderr, "[assets] %s: unsupported rig version\n", path);
+            break;
+        }
+        u32 nbones = RdU32(buf + 40);
+        if (nbones < 1 || nbones > 32 ||
+            (u64)kRigHeaderSize + (u64)nbones * kRigBoneSize > (u64)size) {
+            fprintf(stderr, "[assets] %s: bad bone count %u\n", path, (unsigned)nbones);
+            break;
+        }
+        if (s_rig_count >= MAX_RIGS) {
+            fprintf(stderr, "[assets] rig registry full (%d)\n", MAX_RIGS);
+            break;
+        }
+        Rig* r = &s_rigs[s_rig_count];
+        memcpy(r->name, buf + 8, 32);
+        r->nbones = nbones;
+        r->bones = (RigBone*)calloc(nbones, sizeof(RigBone));
+        bool bones_ok = true;
+        for (u32 i = 0; i < nbones; i++) {
+            const u8* b = buf + kRigHeaderSize + i * kRigBoneSize;
+            RigBone* rb = &r->bones[i];
+            memcpy(rb->name, b, 16);
+            memcpy(rb->mesh_name, b + 16, 32);
+            rb->parent = RdI16(b + 48);
+            rb->bind_pos.vx = RdI16(b + 50);
+            rb->bind_pos.vy = RdI16(b + 52);
+            rb->bind_pos.vz = RdI16(b + 54);
+            if (rb->parent >= (i16)i || (i == 0 && rb->parent != -1) ||
+                (i > 0 && rb->parent < 0)) {
+                fprintf(stderr, "[assets] %s: bone %u bad parent %d "
+                        "(parents must precede children)\n",
+                        path, (unsigned)i, (int)rb->parent);
+                bones_ok = false;
+                break;
+            }
+            if (rb->mesh_name[0] != '\0') {
+                rb->mesh = Mesh_Find(rb->mesh_name);
+                if (!rb->mesh) {
+                    fprintf(stderr, "[assets] %s: bone %u mesh '%.32s' not found\n",
+                            path, (unsigned)i, rb->mesh_name);
+                    bones_ok = false;
+                    break;
+                }
+            }
+        }
+        if (!bones_ok) { free(r->bones); r->bones = nullptr; break; }
+        s_rig_count++;
+        ok = true;
+    } while (false);
+    free(buf);
+    return ok;
+}
+
+// ------------------------------------------------------------- .animbin
+static const u32 kAnimHeaderSize = 84;
+static const u32 kAnimKeySize    = 12;
+
+static bool LoadAnimFile(const char* path) {
+    u32 size = 0;
+    u8* buf = Plat_ReadFile(path, &size);
+    if (!buf) {
+        fprintf(stderr, "[assets] cannot read anim: %s\n", path);
+        return false;
+    }
+    bool ok = false;
+    do {
+        if (size < kAnimHeaderSize || memcmp(buf, "PXAN", 4) != 0) {
+            fprintf(stderr, "[assets] %s: not a PXAN file\n", path);
+            break;
+        }
+        if (RdU32(buf + 4) != 1) {
+            fprintf(stderr, "[assets] %s: unsupported anim version\n", path);
+            break;
+        }
+        u32 nbones = RdU32(buf + 72);
+        u16 nkeys  = RdU16(buf + 76);
+        u16 key_ms = RdU16(buf + 78);
+        if (nkeys < 1 || key_ms < 1 || nbones < 1 || nbones > 32 ||
+            (u64)kAnimHeaderSize + (u64)nkeys * nbones * kAnimKeySize > (u64)size) {
+            fprintf(stderr, "[assets] %s: bad anim header (%u bones, %u keys)\n",
+                    path, (unsigned)nbones, (unsigned)nkeys);
+            break;
+        }
+        if (s_anim_count >= MAX_ANIMS) {
+            fprintf(stderr, "[assets] anim registry full (%d)\n", MAX_ANIMS);
+            break;
+        }
+        AnimClip* c = &s_anims[s_anim_count];
+        memcpy(c->name, buf + 8, 32);
+        memcpy(c->rig_name, buf + 40, 32);
+        c->nbones = nbones;
+        c->nkeys  = nkeys;
+        c->key_ms = key_ms;
+        c->loop   = buf[80];
+        c->rig = Rig_Find(c->rig_name);
+        if (!c->rig) {
+            fprintf(stderr, "[assets] %s: rig '%.32s' not found\n", path, c->rig_name);
+            break;
+        }
+        if (c->rig->nbones != nbones) {
+            fprintf(stderr, "[assets] %s: bone count %u != rig's %u\n",
+                    path, (unsigned)nbones, (unsigned)c->rig->nbones);
+            break;
+        }
+        u32 nch = (u32)nkeys * nbones;
+        c->keys = (AnimKey*)calloc(nch, sizeof(AnimKey));
+        for (u32 i = 0; i < nch; i++) {
+            const u8* k = buf + kAnimHeaderSize + i * kAnimKeySize;
+            c->keys[i].rot.vx = RdI16(k + 0);
+            c->keys[i].rot.vy = RdI16(k + 2);
+            c->keys[i].rot.vz = RdI16(k + 4);
+            c->keys[i].pos.vx = RdI16(k + 6);
+            c->keys[i].pos.vy = RdI16(k + 8);
+            c->keys[i].pos.vz = RdI16(k + 10);
+        }
+        s_anim_count++;
+        ok = true;
+    } while (false);
+    free(buf);
+    return ok;
+}
+
 // ------------------------------------------------------------- manifest
 static bool LoadAllFromManifest(const u8* buf, u32 size, const char* manifest_path) {
     if (size < 12 || memcmp(buf, "PXMF", 4) != 0) {
@@ -357,7 +519,7 @@ static bool LoadAllFromManifest(const u8* buf, u32 size, const char* manifest_pa
     }
     for (u32 i = 0; i < count; i++) {
         u8 type = buf[12 + i * 108];
-        if (type > ASSET_LEVEL) {
+        if (type > ASSET_ANIM) {
             fprintf(stderr, "[assets] %s: record %u unknown asset type %u\n",
                     manifest_path, (unsigned)i, (unsigned)type);
             return false;
@@ -367,9 +529,11 @@ static bool LoadAllFromManifest(const u8* buf, u32 size, const char* manifest_pa
     ResetRegistries();
 
     // Load order per contract: textures, then meshes (need Tex_Find), then
-    // sounds. Levels are listed only for enumeration; Level_Load is on demand.
-    static const u8 kPassType[3] = { ASSET_TEXTURE, ASSET_MESH, ASSET_SOUND };
-    for (int pass = 0; pass < 3; pass++) {
+    // sounds, then rigs (need Mesh_Find), then anims (need Rig_Find).
+    // Levels are listed only for enumeration; Level_Load is on demand.
+    static const u8 kPassType[5] = { ASSET_TEXTURE, ASSET_MESH, ASSET_SOUND,
+                                     ASSET_RIG, ASSET_ANIM };
+    for (int pass = 0; pass < 5; pass++) {
         for (u32 i = 0; i < count; i++) {
             const u8* rec = buf + 12 + i * 108;
             if (rec[0] != kPassType[pass]) continue;
@@ -379,6 +543,10 @@ static bool LoadAllFromManifest(const u8* buf, u32 size, const char* manifest_pa
                 if (!LoadTextureFile(path)) return false;
             } else if (pass == 1) {
                 if (!LoadMeshFile(path)) return false;
+            } else if (pass == 3) {
+                if (!LoadRigFile(path)) return false;
+            } else if (pass == 4) {
+                if (!LoadAnimFile(path)) return false;
             } else {
                 if (s_sound_count >= MAX_SOUNDS) {
                     fprintf(stderr, "[assets] sound registry full (%d)\n", MAX_SOUNDS);

@@ -18,6 +18,8 @@ enum MeshPrimFlags : u8 {
     MPF_SEMITRANS    = 1 << 0,
     MPF_SEMIMODE_SHIFT = 1,      // bits 1-2: semi-transparency mode 0..3
     MPF_DOUBLESIDED  = 1 << 3,   // skip backface cull
+    MPF_UVSCROLL     = 1 << 4,   // add RenderContext uvscroll offset (water etc.)
+    MPF_MATTE        = 1 << 5,   // no specular highlight (matte materials)
 };
 
 struct MeshPrim {           // 36 bytes on disk, see file_formats.md
@@ -76,9 +78,45 @@ struct Level {
     u8           clear_r, clear_g, clear_b;
 };
 
+// --- rig (loaded from .rigbin, magic 'PXRG') ---
+// Rigid-parts skeleton: bones form a hierarchy (parents before children),
+// each bone optionally draws one mesh segment. No vertex skinning (PS1 style).
+
+struct RigBone {
+    char        name[16];
+    char        mesh_name[32];  // all-NUL = no geometry
+    i16         parent;         // -1 for root (bone 0)
+    SVec        bind_pos;       // rest offset from parent, engine units
+    const Mesh* mesh;           // resolved at load, may be null
+};
+
+struct Rig {
+    char     name[32];
+    u32      nbones;
+    RigBone* bones;
+};
+
+// --- animation clip (loaded from .animbin, magic 'PXAN') ---
+
+struct AnimKey { SVec rot; SVec pos; };  // rot: PS1 angle units; pos: engine units
+
+struct AnimClip {
+    char       name[32];
+    char       rig_name[32];
+    u32        nbones;        // must equal rig's
+    u16        nkeys;
+    u16        key_ms;        // duration of one key interval
+    u8         loop;          // 0 = hold last key, 1 = wrap
+    AnimKey*   keys;          // nkeys * nbones, key-major bone-minor
+    const Rig* rig;           // resolved at load
+};
+
 // --- manifest / registry ---
 
-enum AssetType : u8 { ASSET_TEXTURE = 0, ASSET_MESH = 1, ASSET_SOUND = 2, ASSET_LEVEL = 3 };
+enum AssetType : u8 {
+    ASSET_TEXTURE = 0, ASSET_MESH = 1, ASSET_SOUND = 2, ASSET_LEVEL = 3,
+    ASSET_RIG = 4, ASSET_ANIM = 5,
+};
 
 // Load build/assets/manifest.bin, then every listed asset:
 // textures -> uploaded into simulated VRAM + registered; meshes -> loaded +
@@ -88,6 +126,8 @@ bool Assets_LoadAll(const char* manifest_path);
 
 const TexInfo* Tex_Find(const char* name);   // null if missing
 const Mesh*    Mesh_Find(const char* name);
+const Rig*      Rig_Find(const char* name);
+const AnimClip* Anim_Find(const char* name);
 struct Sample;                                // audio.h
 Sample*        Sound_Find(const char* name);
 Level*         Level_Load(const char* path);  // .lvlbin; caller owns nothing (static)

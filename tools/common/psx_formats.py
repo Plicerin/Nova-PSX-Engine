@@ -29,9 +29,17 @@ FORMAT_NAMES = {v: k for k, v in FORMAT_IDS.items()}
 
 MP_F3, MP_G3, MP_FT3, MP_GT3, MP_F4, MP_G4, MP_FT4, MP_GT4 = range(8)
 
+# MeshPrim flag bits (must match engine/assets/assets.h MeshPrimFlags).
+MPF_SEMITRANS = 1 << 0
+MPF_SEMIMODE_SHIFT = 1          # bits 1-2: semi-transparency mode 0..3
+MPF_DOUBLESIDED = 1 << 3
+MPF_UVSCROLL = 1 << 4           # renderer adds per-frame uv offset (water etc.)
+MPF_MATTE = 1 << 5              # no specular highlight (matte materials)
+
 # --- asset types (engine/assets/assets.h AssetType) --------------------------
 
 ASSET_TEXTURE, ASSET_MESH, ASSET_SOUND, ASSET_LEVEL = 0, 1, 2, 3
+ASSET_RIG, ASSET_ANIM = 4, 5
 
 # --- world conventions --------------------------------------------------------
 
@@ -304,6 +312,53 @@ _MF_HDR = "<4sII"                   # 12 bytes
 _MF_REC = "<BBBB32s64sII"           # 108 bytes
 assert struct.calcsize(_MF_HDR) == 12
 assert struct.calcsize(_MF_REC) == 108
+
+
+MAGIC_RIG = b"PXRG"
+MAGIC_ANIM = b"PXAN"
+_RIG_HDR = "<4sI32sI"                 # magic, version, name, nbones (44 B)
+_RIG_BONE = "<16s32sh3h"              # name, mesh, parent, bind xyz (56 B)
+_ANIM_HDR = "<4sI32s32sIHHB3x"        # magic, ver, name, rig, nbones,
+                                      # nkeys, key_ms, loop (84 B)
+_ANIM_KEY = "<3h3h"                   # rot xyz, pos xyz (12 B)
+assert struct.calcsize(_RIG_HDR) == 44
+assert struct.calcsize(_RIG_BONE) == 56
+assert struct.calcsize(_ANIM_HDR) == 84
+assert struct.calcsize(_ANIM_KEY) == 12
+
+
+def write_rigbin(path, *, name, bones):
+    """bones: [{name, mesh(str, '' = none), parent(int), bind_pos(x,y,z engine
+    units)}] — parents must precede children, bone 0 is the root."""
+    if not 1 <= len(bones) <= 32:
+        raise PackError("rig '%s': %d bones (1..32 allowed)" % (name, len(bones)))
+    with open(path, "wb") as f:
+        f.write(struct.pack(_RIG_HDR, MAGIC_RIG, FORMAT_VERSION,
+                            pack_name(name), len(bones)))
+        for i, b in enumerate(bones):
+            parent = int(b["parent"])
+            if (i == 0) != (parent == -1) or parent >= i:
+                raise PackError("rig '%s': bone %d ('%s') bad parent %d"
+                                % (name, i, b["name"], parent))
+            px, py, pz = (check_i16(int(round(v)), "bind_pos") for v in b["bind_pos"])
+            f.write(struct.pack(_RIG_BONE, pack_name(b["name"], 16),
+                                pack_name(b.get("mesh", ""), 32),
+                                parent, px, py, pz))
+
+
+def write_animbin(path, *, name, rig_name, nbones, nkeys, key_ms, loop, keys):
+    """keys: flat [(rot xyz, pos xyz)] * (nkeys*nbones), key-major bone-minor;
+    rot in PS1 angle units, pos in engine units."""
+    if len(keys) != nkeys * nbones:
+        raise PackError("anim '%s': %d channel records != nkeys*nbones (%d)"
+                        % (name, len(keys), nkeys * nbones))
+    with open(path, "wb") as f:
+        f.write(struct.pack(_ANIM_HDR, MAGIC_ANIM, FORMAT_VERSION,
+                            pack_name(name), pack_name(rig_name),
+                            nbones, nkeys, key_ms, 1 if loop else 0))
+        for (rot, pos) in keys:
+            vals = [check_i16(int(round(v)), "anim key") for v in (*rot, *pos)]
+            f.write(struct.pack(_ANIM_KEY, *vals))
 
 
 def write_manifest(path, records):

@@ -30,6 +30,7 @@ struct RenderContext {
     Mat           view;      // world -> view (camera) matrix, built by Rc_Begin
     Camera        cam;
     i32           proj_h;    // projection distance, from g_config.fov_deg
+    i32           uvscroll_u, uvscroll_v; // texel offset for MPF_UVSCROLL prims
 };
 
 void Rc_Init(RenderContext* rc);
@@ -69,3 +70,14 @@ void Rc_Flush(RenderContext* rc, Framebuffer* fb);
 // Draw-order debug: when set, Rc_Flush tints primitives by draw index
 // (early=blue -> late=red) instead of their real color.
 extern bool g_debug_draworder;
+
+// --- PS1.5 "wet" hybrid: per-vertex specular highlight (spec 5.8 relaxed) ---
+// Infinite-viewer Blinn highlight added on top of vertex lighting. Additive,
+// clamped, fog-attenuated. Off by default (pure PS1). shininess = number of
+// squarings of the N.H term (4 -> ^16, sharper = glossier/wetter).
+struct SpecularParams {
+    bool enabled;
+    u8   r, g, b;      // highlight colour (0..255)
+    u8   shininess;    // 1..6 squarings
+};
+extern SpecularParams g_specular;

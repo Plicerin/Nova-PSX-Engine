@@ -130,7 +130,7 @@ Source form is `game/levels/*.json` per spec 12.4 (floats/degrees), packed by
 Then count × 108-byte records:
 | offset | size | field |
 |---|---|---|
-| 0   | 1  | u8 type: 0 texture, 1 mesh, 2 sound, 3 level |
+| 0   | 1  | u8 type: 0 texture, 1 mesh, 2 sound, 3 level, 4 rig, 5 anim |
 | 1   | 1  | u8 is_music (sounds only) |
 | 2   | 1  | u8 loop_whole (sounds only) |
 | 3   | 1  | pad |
@@ -139,8 +139,63 @@ Then count × 108-byte records:
 | 100 | 4  | u32 file_bytes |
 | 104 | 4  | pad |
 
-Load order at runtime: all textures, then meshes, then sounds. Levels are
+Load order at runtime: all textures, then meshes, then sounds, then rigs,
+then anims (rigs reference meshes by name; anims reference rigs). Levels are
 listed for enumeration but loaded on demand via `Level_Load`.
+
+## .rigbin — skeleton rig ('PXRG')
+
+A rig is a bone hierarchy where each bone optionally draws one mesh segment
+(rigid-parts animation, PS1 style — no vertex skinning). Parents must appear
+before children (bone 0 = root).
+
+Header:
+| offset | size | field |
+|---|---|---|
+| 0  | 4  | magic `PXRG` |
+| 4  | 4  | u32 version = 1 |
+| 8  | 32 | name |
+| 40 | 4  | u32 nbones (1..32) |
+
+Then nbones × 56-byte bone records:
+| offset | size | field |
+|---|---|---|
+| 0  | 16 | bone name |
+| 16 | 32 | segment mesh asset name (all-NUL = no geometry) |
+| 48 | 2  | i16 parent index (-1 for root) |
+| 50 | 6  | SVec bind_pos: i16 x,y,z — rest offset from parent, engine units |
+
+Bone local transform at runtime:
+`L = T(bind_pos + key_pos) * RotMatrix(key_rot)`; world = parent_world * L
+(composed with `Gte_CompMatrix`, 4.12 truncating — authentic drift welcome).
+
+## .animbin — animation clip ('PXAN')
+
+Uniformly-timed keyframes for every bone of one rig. All rotation channels
+are PS1 angle units (4096 = full turn); interpolation must lerp the
+shortest-path signed delta (`((d + 2048) & 4095) - 2048`) in fixed point.
+
+Header:
+| offset | size | field |
+|---|---|---|
+| 0  | 4  | magic `PXAN` |
+| 4  | 4  | u32 version = 1 |
+| 8  | 32 | clip name |
+| 40 | 32 | rig name (must match a loaded rig) |
+| 72 | 4  | u32 nbones (must equal the rig's) |
+| 76 | 2  | u16 nkeys (>= 1) |
+| 78 | 2  | u16 key_ms — duration of one key interval |
+| 80 | 1  | u8 loop: 0 = hold last key, 1 = wrap |
+| 81 | 3  | pad |
+
+Then nkeys × nbones × 12-byte channel records (key-major, bone-minor):
+| offset | size | field |
+|---|---|---|
+| 0 | 6 | SVec rot: i16 x,y,z, PS1 angle units |
+| 6 | 6 | SVec pos: i16 x,y,z, engine units (added to rig bind_pos) |
+
+Clip duration = (nkeys - 1) * key_ms for one-shots; looped clips wrap from
+key nkeys-1 back to key 0 over one extra key_ms interval.
 
 ## WAV input (source assets)
 

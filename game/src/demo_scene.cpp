@@ -10,6 +10,7 @@
 #include "engine/audio/audio.h"
 #include "engine/input/input.h"
 #include "engine/debug/debug.h"
+#include "engine/anim/anim.h"
 
 static Level*         s_level     = nullptr;
 static LevelObject*   s_gem       = nullptr;
@@ -25,12 +26,37 @@ static i32  s_bob;          // gem bob offset this tick, engine units
 static i32  s_spin;         // turntable deg/tick for a "girl" object (0 = off)
 static LevelObject* s_spin_obj = nullptr;
 
-static constexpr i32 kRoomBound = 1400 - 128;  // room half-extent minus wall margin
+// Robot companion showcase (Step 2 animation proof).
+static const Rig*      s_robot_rig = nullptr;
+static AnimState       s_robot_anim;
+static const AnimClip* s_robot_idle = nullptr;
+static const AnimClip* s_robot_attack = nullptr;
+static const AnimClip* s_robot_defend = nullptr;
+static LVec            s_robot_pos = { (i32)(1.8 * 256), 0, (i32)(-2.5 * 256) };
+static SVec            s_robot_rot = { 0, (i16)(2048 + 300), 0 }; // face camera-ish
+
+// Shard fold-creature showcase (triangle enemy prototype).
+static const Rig*      s_shard_rig = nullptr;
+static AnimState       s_shard_anim;
+static const AnimClip* s_shard_idle = nullptr;
+static const AnimClip* s_shard_attack = nullptr;
+static const AnimClip* s_shard_morph = nullptr;
+static LVec            s_shard_pos = { (i32)(-1.6 * 256), 0, (i32)(-2.5 * 256) };
+static SVec            s_shard_rot = { 0, (i16)2048, 0 };  // face the -z side
+
+static constexpr i32 kRoomBound = 2048 - 128;  // arena half-extent minus wall margin
 static constexpr i32 kSpeed     = 13;          // units/tick ~= 3 m/s at 60 Hz
 static constexpr i32 kTurnRate  = 30;          // angle units/tick
 
 // Turntable rate for a showcase character (set from CLI before Demo_Init).
 void Demo_SetSpin(i32 deg_per_tick) { s_spin = deg_per_tick; }
+
+// Start a named clip on the robot (CLI/test hook; no-op if unknown).
+void Demo_PlayClip(const char* name) {
+    const AnimClip* c = Anim_Find(name);
+    if (c) Anim_Start(&s_robot_anim, c);
+    else fprintf(stderr, "demo: clip '%s' not found\n", name);
+}
 
 void Demo_Init(Level* level) {
     s_level = level;
@@ -55,6 +81,18 @@ void Demo_Init(Level* level) {
         if (strcmp(level->objects[i].mesh, "girl") == 0)
             s_spin_obj = &level->objects[i];
     }
+
+    s_robot_rig    = Rig_Find("robot");
+    s_robot_idle   = Anim_Find("robot_idle");
+    s_robot_attack = Anim_Find("robot_attack");
+    s_robot_defend = Anim_Find("robot_defend");
+    Anim_Start(&s_robot_anim, s_robot_idle);   // clip may be null: bind pose
+
+    s_shard_rig    = Rig_Find("shard");
+    s_shard_idle   = Anim_Find("shard_idle");
+    s_shard_attack = Anim_Find("shard_attack");
+    s_shard_morph  = Anim_Find("shard_morph");
+    Anim_Start(&s_shard_anim, s_shard_idle);
 
     s_orb = Tex_Find("orb_glow");
     if (!s_orb) fprintf(stderr, "demo: texture 'orb_glow' missing\n");
@@ -96,6 +134,28 @@ void Demo_Update() {
 
     if (s_blip && Pad_Pressed(PAD_CROSS))
         Audio_Play(s_blip, 100, 0, 4096);
+
+    // Robot: E/Triangle = attack, Q/Square = defend, back to idle when done.
+    if (s_robot_rig) {
+        if (Pad_Pressed(PAD_TRIANGLE) && s_robot_attack)
+            Anim_Start(&s_robot_anim, s_robot_attack);
+        if (Pad_Pressed(PAD_SQUARE) && s_robot_defend)
+            Anim_Start(&s_robot_anim, s_robot_defend);
+        Anim_Update(&s_robot_anim, 16);        // fixed 60 Hz sim tick
+        if (s_robot_anim.done && s_robot_idle)
+            Anim_Start(&s_robot_anim, s_robot_idle);
+    }
+
+    // Shard creature: same keys (E = lunge, Q = fold-morph).
+    if (s_shard_rig) {
+        if (Pad_Pressed(PAD_TRIANGLE) && s_shard_attack)
+            Anim_Start(&s_shard_anim, s_shard_attack);
+        if (Pad_Pressed(PAD_SQUARE) && s_shard_morph)
+            Anim_Start(&s_shard_anim, s_shard_morph);
+        Anim_Update(&s_shard_anim, 16);
+        if (s_shard_anim.done && s_shard_idle)
+            Anim_Start(&s_shard_anim, s_shard_idle);
+    }
 }
 
 void Demo_Render(RenderContext* rc, Framebuffer* fb) {
@@ -116,6 +176,10 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     const Camera* cam = Debug_FreeCamActive() ? Debug_FreeCam() : &scene_cam;
 
     Rc_Begin(rc, cam);
+    // Water animation: slow diagonal drift + sine wobble (texels; wraps).
+    rc->uvscroll_u = (i32)((s_tick * 20u) >> 6);
+    rc->uvscroll_v = (i32)((s_tick * 9u) >> 6)
+                   + ((Csin((i32)((s_tick * 24u) & 4095u)) * 5) >> 12);
     Fb_Clear(fb, s_level->clear_r, s_level->clear_g, s_level->clear_b);
     if (g_config.zbuffer) Fb_ClearZ();
 
@@ -129,6 +193,23 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         m.t[1] = o->pos.vy;
         m.t[2] = o->pos.vz;
         Rc_DrawMesh(rc, o->mesh_ptr, &m);
+    }
+
+    if (s_robot_rig) {
+        Mat rm;
+        Gte_RotMatrix(&s_robot_rot, &rm);
+        rm.t[0] = s_robot_pos.vx;
+        rm.t[1] = s_robot_pos.vy;
+        rm.t[2] = s_robot_pos.vz;
+        Anim_Draw(rc, s_robot_rig, &s_robot_anim, &rm);
+    }
+    if (s_shard_rig) {
+        Mat sm;
+        Gte_RotMatrix(&s_shard_rot, &sm);
+        sm.t[0] = s_shard_pos.vx;
+        sm.t[1] = s_shard_pos.vy;
+        sm.t[2] = s_shard_pos.vz;
+        Anim_Draw(rc, s_shard_rig, &s_shard_anim, &sm);
     }
 
     // Glow billboard 0.8 m above the gem, opposite bob phase, additive.

@@ -30,6 +30,9 @@ static int  s_resmode = -1;     // --resmode N: override internal resolution ind
 static int  s_fov     = -1;     // --fov N: override horizontal FOV
 static bool s_noui    = false;  // --noui: skip title/help overlay
 static i32  s_spin    = 0;      // --spin N: turntable deg/tick for the character
+static i64  s_freecam_at = -1;  // --freecam-at N: toggle freecam at frame N (test)
+static const char* s_clip = nullptr;  // --clip NAME [--clip-at N]: play robot clip
+static i64  s_clip_at = 0;
 
 static void AudioCallback(i16* out_stereo, int frames, void* user) {
     (void)user;
@@ -76,8 +79,20 @@ int main(int argc, char** argv) {
             s_fov = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--spin") == 0 && i + 1 < argc) {
             s_spin = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--freecam-at") == 0 && i + 1 < argc) {
+            s_freecam_at = (i64)strtoll(argv[++i], nullptr, 10);
+        } else if (strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {
+            s_clip = argv[++i];
+        } else if (strcmp(argv[i], "--clip-at") == 0 && i + 1 < argc) {
+            s_clip_at = (i64)strtoll(argv[++i], nullptr, 10);
         } else if (strcmp(argv[i], "--noui") == 0) {
             s_noui = true;
+        } else if (strcmp(argv[i], "--wire") == 0) {
+            g_config.wireframe = true;
+        } else if (strcmp(argv[i], "--bloom") == 0) {
+            g_config.bloom = true;
+        } else if (strcmp(argv[i], "--spec") == 0) {
+            g_specular.enabled = true;
         } else if (strcmp(argv[i], "--res") == 0 && i + 2 < argc) {
             win_w = atoi(argv[i + 1]);
             win_h = atoi(argv[i + 2]);
@@ -160,9 +175,12 @@ int main(int argc, char** argv) {
             }
         }
 
+        if (frame_index == s_freecam_at) Debug_ToggleFreeCam(&g_rc);
+        if (s_clip && frame_index == s_clip_at) Demo_PlayClip(s_clip);
         if (ShotAtFrame(frame_index)) Debug_RequestScreenshot();
 
         Demo_Render(&g_rc, &g_fb);
+        if (g_config.bloom) Fb_Bloom(&g_fb, g_config.bloom_threshold, g_config.bloom_strength);
         if (!s_noui) Demo_DrawUI(&g_fb);
         Debug_DrawOverlay(&g_fb, &g_rc, fps_x10, frame_ms_x10);
         if (Debug_ScreenshotPending()) Debug_TakeScreenshot(&g_fb);
