@@ -74,16 +74,16 @@ void Fx_Splash(LVec pos, int count) {
         Particle* p = Alloc();
         if (!p) return;
         const i32 yaw = RndRange(0, ANGLE_FULL);
-        const i32 hs = RndRange(2, 7);
+        const i32 hs = RndRange(6, 15);        // strong outward ring
         p->pos = pos;
-        p->pos.vx += (Csin(yaw) * RndRange(20, 90)) >> FX_SHIFT;
-        p->pos.vz += (Ccos(yaw) * RndRange(20, 90)) >> FX_SHIFT;
+        p->pos.vx += (Csin(yaw) * RndRange(20, 70)) >> FX_SHIFT;
+        p->pos.vz += (Ccos(yaw) * RndRange(20, 70)) >> FX_SHIFT;
         p->vel.vx = (Csin(yaw) * hs) >> FX_SHIFT;
         p->vel.vz = (Ccos(yaw) * hs) >> FX_SHIFT;
-        p->vel.vy = -RndRange(8, 16);
-        p->life = p->max_life = RndRange(20, 40);
-        p->size0 = 70; p->size1 = 18;
-        p->r = 90; p->g = 230; p->b = 200;
+        p->vel.vy = -RndRange(10, 22);
+        p->life = p->max_life = RndRange(24, 46);
+        p->size0 = 130; p->size1 = 30;
+        p->r = 180; p->g = 255; p->b = 235;    // bright against the teal water
         p->gravity = 1;
     }
 }

@@ -114,6 +114,9 @@ void Demo_Update() {
     s_tick++;
     Fx_Update();
 
+    // Combat owns all input in combat mode (no walk-camera bleed-through).
+    if (Combat_Active()) { Combat_Update(); return; }
+
     if (Pad_Held(PAD_L1)) s_yaw -= kTurnRate;
     if (Pad_Held(PAD_R1)) s_yaw += kTurnRate;
     s_yaw &= ANGLE_FULL - 1;
@@ -140,8 +143,6 @@ void Demo_Update() {
 
     if (s_blip && Pad_Pressed(PAD_CROSS))
         Audio_Play(s_blip, 100, 0, 4096);
-
-    if (Combat_Active()) { Combat_Update(); return; }
 
     // Robot: E/Triangle = attack, Q/Square = defend, back to idle when done.
     if (s_robot_rig) {

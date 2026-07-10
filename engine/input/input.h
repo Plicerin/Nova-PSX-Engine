@@ -23,6 +23,7 @@ enum PadButton : u8 {
 
 void Input_Init();                       // installs default bindings
 void Input_Update();                     // call once per frame after Plat_PumpEvents
+void Input_ConsumeEdges();               // call after each sim tick (multi-tick frames)
 bool Pad_Held(PadButton b);
 bool Pad_Pressed(PadButton b);           // edge since last frame
 bool Pad_Released(PadButton b);

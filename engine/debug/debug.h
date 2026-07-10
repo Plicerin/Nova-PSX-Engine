@@ -30,6 +30,9 @@ bool Debug_StepFrame();       // true exactly once after O is pressed while paus
 // Free camera: when active, call Debug_GetCamera to override the scene camera.
 bool Debug_FreeCamActive();
 void Debug_ToggleFreeCam(RenderContext* rc);   // same as pressing TAB
+// Games may claim TAB for their own UI (e.g. combat menus): when disallowed,
+// the TAB freecam toggle is ignored (an active freecam is forced off).
+void Debug_AllowFreeCam(bool allow);
 const Camera* Debug_FreeCam();
 void Debug_SyncFreeCam(const Camera* scene_cam); // seed free cam from scene cam
 

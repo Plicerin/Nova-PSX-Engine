@@ -37,6 +37,7 @@ void Plat_Shutdown();
 bool Plat_PumpEvents();
 bool Plat_KeyHeld(PlatKey k);
 bool Plat_KeyPressed(PlatKey k);      // went down since last pump
+void Plat_ClearPressed();             // consume key press edges (sim tick ran)
 const GamepadState* Plat_Gamepad();
 
 // Upload the internal framebuffer and present with nearest-neighbor scaling

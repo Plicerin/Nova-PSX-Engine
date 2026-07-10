@@ -206,6 +206,7 @@ bool Plat_PumpEvents() {
 
 bool Plat_KeyHeld(PlatKey k)    { return k < PK_COUNT && g_held[k]; }
 bool Plat_KeyPressed(PlatKey k) { return k < PK_COUNT && g_pressed[k]; }
+void Plat_ClearPressed()        { memset(g_pressed, 0, sizeof(g_pressed)); }
 const GamepadState* Plat_Gamepad() { return &g_pad_state; }
 
 // ---------------------------------------------------------------------------

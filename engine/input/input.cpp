@@ -87,6 +87,15 @@ void Input_Update()
     }
 }
 
+void Input_ConsumeEdges()
+{
+    // The main loop may run several fixed sim ticks per rendered frame; only
+    // the first tick may see press/release edges, or one keypress toggles a
+    // menu two or three times. The loop calls this after every sim tick.
+    memcpy(s_prev, s_held, sizeof(s_prev));
+    Plat_ClearPressed();
+}
+
 bool Pad_Held(PadButton b)     { return b < PAD_COUNT && s_held[b]; }
 bool Pad_Pressed(PadButton b)  { return b < PAD_COUNT && s_held[b] && !s_prev[b]; }
 bool Pad_Released(PadButton b) { return b < PAD_COUNT && !s_held[b] && s_prev[b]; }

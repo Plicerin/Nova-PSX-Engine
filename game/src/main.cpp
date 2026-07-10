@@ -177,6 +177,7 @@ int main(int argc, char** argv) {
         } else {
             while (acc >= kStepNS) {
                 Demo_Update();
+                Input_ConsumeEdges();   // edges are one-tick events
                 acc -= kStepNS;
             }
         }

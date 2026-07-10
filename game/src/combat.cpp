@@ -9,6 +9,7 @@
 #include "engine/debug/debug.h"
 #include "engine/input/input.h"
 #include "engine/math/fixed.h"
+#include "engine/platform/platform.h"
 #include "game/src/fx.h"
 
 // ------------------------------------------------------------------ actors
@@ -65,13 +66,14 @@ static void StartClip(Fighter* f, const AnimClip* c) { Anim_Start(&f->anim, c); 
 static void AddFloat(int val, int x, int y, bool halved) {
     for (int i = 0; i < 4; i++) {
         if (s_floats[i].ticks > 0) continue;
-        s_floats[i] = { val, 55, x, y, halved };
+        s_floats[i] = { val, 75, x, y, halved };
         return;
     }
 }
 
 void Combat_Init() {
     if (!s_active) return;
+    Debug_AllowFreeCam(false);   // TAB belongs to the combat menu
     s_player = {};
     s_player.name    = "UNIT-7";
     s_player.rig     = Rig_Find("robot");
@@ -122,7 +124,7 @@ static void DealDamage(Fighter* from, Fighter* to, int base, int spread,
     LVec chest = to->pos;
     chest.vy -= 280;                          // ~1.1 m up (y down)
     if (halved)
-        Fx_Burst(chest, 6, 8, 110, 180, 255);   // dampened blue block sparks
+        Fx_Burst(chest, 12, 11, 150, 215, 255); // blue block sparks
     else
         Fx_Burst(chest, 12, 14, 255, 210, 130); // impact sparks
     Fx_Shake(14 + dmg, 12);
@@ -142,7 +144,9 @@ void Combat_Update() {
         break;
 
     case PH_MENU:
-        if (Pad_Pressed(PAD_UP) || Pad_Pressed(PAD_DOWN)) s_cursor ^= 1;
+        if (Pad_Pressed(PAD_UP) || Pad_Pressed(PAD_DOWN) ||
+            Plat_KeyPressed(PK_TAB))
+            s_cursor ^= 1;
         if (s_auto) s_cursor = 0;
         if (s_auto || Pad_Pressed(PAD_CROSS) || Pad_Pressed(PAD_START)) {
             if (s_cursor == 0) {
@@ -211,8 +215,8 @@ void Combat_Update() {
             if (loser->sink == 0) {              // breaking the surface
                 Fx_Splash(loser->pos, 20);
                 Fx_Shake(26, 16);
-            } else if (loser->sink % 36 == 0) {  // churn while going under
-                Fx_Splash(loser->pos, 5);
+            } else if (loser->sink % 15 == 0) {  // churn while going under
+                Fx_Splash(loser->pos, 9);
             }
             loser->sink += 3;
         }
@@ -310,7 +314,11 @@ void Combat_DrawUI(Framebuffer* fb) {
         const FloatNum* fn = &s_floats[i];
         if (fn->ticks <= 0) continue;
         u8 fade = fn->ticks < 20 ? (u8)(80 + fn->ticks * 8) : 240;
-        Debug_Text(fb, fn->x, fn->y, 255, fade, (u8)(fade / 3),
-                   fn->halved ? "%d BLK" : "%d", fn->val);
+        if (fn->halved)
+            Debug_Text(fb, fn->x - 16, fn->y, (u8)(fade / 2), (u8)(fade * 4 / 5),
+                       255, "%d BLOCKED", fn->val);
+        else
+            Debug_Text(fb, fn->x, fn->y, 255, fade, (u8)(fade / 3),
+                       "%d", fn->val);
     }
 }

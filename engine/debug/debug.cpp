@@ -112,7 +112,15 @@ static void FreeCamFly(i32 dt_ms) {
     if (Plat_KeyHeld(PK_F) || Plat_KeyHeld(PK_E)) cam->pos.vy += spd;
 }
 
+static bool s_freecam_allowed = true;
+
+void Debug_AllowFreeCam(bool allow) {
+    s_freecam_allowed = allow;
+    if (!allow) s_dbg.freecam_on = false;
+}
+
 void Debug_ToggleFreeCam(RenderContext* rc) {
+    if (!s_freecam_allowed) return;
     s_dbg.freecam_on = !s_dbg.freecam_on;
     if (s_dbg.freecam_on) {
         if (s_dbg.synced)  s_dbg.freecam = s_dbg.synced_cam;
