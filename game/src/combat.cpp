@@ -90,8 +90,8 @@ void Combat_Init() {
 
     // Robot companion: stands with the diver, out of the duel for now.
     s_companion = {};
-    s_companion.rig  = Rig_Find("robot");
-    s_companion.idle = Anim_Find("robot_idle");
+    s_companion.rig  = Rig_Find("unit7");
+    s_companion.idle = Anim_Find("unit7_idle");
     s_companion.pos  = { (i32)(-3.6 * 256), 0, (i32)(1.8 * 256) };
     s_companion.rot  = { 0, (i16)(1024 + 200), 0 };
     StartClip(&s_companion, s_companion.idle);
