@@ -87,7 +87,7 @@ vi[3]=bottom-right (PS1 convention; runtime splits as (0,1,2) + (1,3,2)).
 | offset | size | field |
 |---|---|---|
 | 0  | 4  | magic `PXLV` |
-| 4  | 4  | u32 version = 1 |
+| 4  | 4  | u32 version = 2 |
 | 8  | 32 | name |
 | 40 | 4  | u32 nobjects |
 | 44 | 12 | camera pos i32[3] (engine units) |
@@ -105,6 +105,19 @@ vi[3]=bottom-right (PS1 convention; runtime splits as (0,1,2) + (1,3,2)).
 | 90 | 2  | pad |
 | 92 | 3  | clear color r,g,b u8 |
 | 95 | 1  | pad |
+| 96 | 1  | **v2** fill enabled u8 |
+| 97 | 3  | **v2** fill r,g,b u8 |
+| 100| 6  | **v2** fill dir i16[3] (4.12; loader normalizes) |
+| 106| 2  | **v2** pad |
+
+Header is 96 bytes in v1, **108 in v2**; objects start at the header size.
+
+**v2 fill light.** A second directional light with its own colour and direction,
+summed into the per-vertex term alongside the key light:
+`L = ambient + diffuse*max(0,-N·dir) + fill*max(0,-N·fdir)`. It exists to give
+two-tone coloured lighting (e.g. cool ambient + neutral key + warm fill rim)
+instead of a single wash. v1 levels still load; their fill block is zeroed, so
+`fil_en = 0` and the term drops out. Specular uses the key light only.
 
 Then nobjects × 64-byte records:
 | offset | size | field |

@@ -277,18 +277,24 @@ def write_meshbin(path, *, name, verts, norms, tex_names, prims,
 
 # --- .lvlbin writer ('PXLV') -----------------------------------------------------
 
-_LVL_HDR = "<4sI32sI3i3hHB3BiiB3B3BB3hH3BB"   # 96 bytes
-_LVL_OBJ = "<32s3i3hH3i"                       # 64 bytes
-assert struct.calcsize(_LVL_HDR) == 96
+# v2 appends a second, independently-coloured "fill" light (enabled, rgb,
+# dir i16[3], 2 pad) after the clear colour -> 108 bytes.
+LEVEL_VERSION = 2
+_LVL_HDR = "<4sI32sI3i3hHB3BiiB3B3BB3hH3BBB3B3h2x"   # 108 bytes
+_LVL_OBJ = "<32s3i3hH3i"                              # 64 bytes
+assert struct.calcsize(_LVL_HDR) == 108
 assert struct.calcsize(_LVL_OBJ) == 64
 
 
 def write_lvlbin(path, *, name, cam_pos, cam_rot, fog, light, clear_color,
                  objects):
     """fog: {enabled,r,g,b,start,end}; light: {enabled,ambient[3],diffuse[3],
-    dir[3]}; objects: [{mesh,pos i32[3],rot i16[3],scale fx12 i32[3]}]."""
+    dir[3], fill:{enabled,r,g,b,dir[3]}}; objects: [{mesh,pos i32[3],
+    rot i16[3],scale fx12 i32[3]}]."""
+    fill = light.get("fill") or {"enabled": 0, "r": 0, "g": 0, "b": 0,
+                                 "dir": (0, FX12_ONE, 0)}
     hdr = struct.pack(
-        _LVL_HDR, MAGIC_LEVEL, FORMAT_VERSION, pack_name(name), len(objects),
+        _LVL_HDR, MAGIC_LEVEL, LEVEL_VERSION, pack_name(name), len(objects),
         cam_pos[0], cam_pos[1], cam_pos[2],
         cam_rot[0], cam_rot[1], cam_rot[2], 0,
         fog["enabled"], fog["r"], fog["g"], fog["b"], fog["start"], fog["end"],
@@ -296,7 +302,9 @@ def write_lvlbin(path, *, name, cam_pos, cam_rot, fog, light, clear_color,
         light["ambient"][0], light["ambient"][1], light["ambient"][2],
         light["diffuse"][0], light["diffuse"][1], light["diffuse"][2], 0,
         light["dir"][0], light["dir"][1], light["dir"][2], 0,
-        clear_color[0], clear_color[1], clear_color[2], 0)
+        clear_color[0], clear_color[1], clear_color[2], 0,
+        fill["enabled"], fill["r"], fill["g"], fill["b"],
+        fill["dir"][0], fill["dir"][1], fill["dir"][2])
     with open(path, "wb") as f:
         f.write(hdr)
         for o in objects:

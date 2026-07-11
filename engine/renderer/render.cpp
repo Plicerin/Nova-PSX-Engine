@@ -92,12 +92,23 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         const int amb[3] = { rc->light.amb_r, rc->light.amb_g, rc->light.amb_b };
         const int dif[3] = { rc->light.dif_r, rc->light.dif_g, rc->light.dif_b };
         const int spc[3] = { g_specular.r, g_specular.g, g_specular.b };
+        // Optional second, differently-coloured directional fill (two-tone).
+        const bool fill_on = rc->light.fil_en != 0;
+        const int fil[3] = { rc->light.fil_r, rc->light.fil_g, rc->light.fil_b };
+        LVec lf = { 0, 0, 0 };
+        if (fill_on) Gte_ApplyRot(&mrot_t, &rc->light.fdir, &lf);
         for (u32 i = 0; i < mesh->nverts; i++) {
             const SVec* n = &mesh->norms[i];
             i32 dot = (i32)n->vx * ld.vx + (i32)n->vy * ld.vy + (i32)n->vz * ld.vz;
             i32 I = ClampI32((-dot) >> 12, 0, 4096);
+            i32 If = 0;
+            if (fill_on) {
+                i32 df = (i32)n->vx * lf.vx + (i32)n->vy * lf.vy + (i32)n->vz * lf.vz;
+                If = ClampI32((-df) >> 12, 0, 4096);
+            }
             for (int c = 0; c < 3; c++) {
                 int L = amb[c] + ((dif[c] * I) >> 12);
+                if (fill_on) L += (fil[c] * If) >> 12;
                 s_lit[i][c] = (u8)(L > 255 ? 255 : L);
             }
             if (spec_on) {

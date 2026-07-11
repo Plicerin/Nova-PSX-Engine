@@ -591,21 +591,27 @@ static Level s_level; // one level at a time; Level_Load owns its object array
 
 // Object record: fields at 0/32/44/50/52 sum to 64 bytes (the doc's "60-byte"
 // line contradicts its own offsets; explicit offsets are authoritative).
-static const u32 kLvlHeaderSize = 96;
-static const u32 kLvlObjSize    = 64;
+static const u32 kLvlHeaderV1 = 96;
+static const u32 kLvlHeaderV2 = 108;   // v2 appends a fill light
+static const u32 kLvlObjSize  = 64;
 
 static bool ParseLevel(const u8* buf, u32 size, const char* path) {
-    if (size < kLvlHeaderSize || memcmp(buf, "PXLV", 4) != 0) {
+    if (size < kLvlHeaderV1 || memcmp(buf, "PXLV", 4) != 0) {
         fprintf(stderr, "[assets] %s: not a PXLV file\n", path);
         return false;
     }
     u32 version = RdU32(buf + 4);
-    if (version != 1) {
+    if (version != 1 && version != 2) {
         fprintf(stderr, "[assets] %s: unsupported level version %u\n", path, (unsigned)version);
         return false;
     }
+    u32 hdr_size = (version >= 2) ? kLvlHeaderV2 : kLvlHeaderV1;
+    if (size < hdr_size) {
+        fprintf(stderr, "[assets] %s: truncated level header\n", path);
+        return false;
+    }
     u32 nobjects = RdU32(buf + 40);
-    if ((u64)kLvlHeaderSize + (u64)nobjects * kLvlObjSize > (u64)size) {
+    if ((u64)hdr_size + (u64)nobjects * kLvlObjSize > (u64)size) {
         fprintf(stderr, "[assets] %s: truncated level (%u objects)\n", path, (unsigned)nobjects);
         return false;
     }
@@ -643,22 +649,33 @@ static bool ParseLevel(const u8* buf, u32 size, const char* path) {
     s_level.clear_g = buf[93];
     s_level.clear_b = buf[94];
 
-    // Normalize light dir to length 4096 (4.12). Squares fit u32: 3*32767^2.
-    {
-        i32 dx = s_level.light.dir.vx, dy = s_level.light.dir.vy, dz = s_level.light.dir.vz;
+    if (version >= 2) {
+        s_level.light.fil_en = buf[96];
+        s_level.light.fil_r  = buf[97];
+        s_level.light.fil_g  = buf[98];
+        s_level.light.fil_b  = buf[99];
+        s_level.light.fdir.vx = RdI16(buf + 100);
+        s_level.light.fdir.vy = RdI16(buf + 102);
+        s_level.light.fdir.vz = RdI16(buf + 104);
+    }
+    // (fill fields are already zeroed by the memset above for v1 levels)
+
+    // Normalize a light dir to length 4096 (4.12). Squares fit u32: 3*32767^2.
+    auto normalize_dir = [&](SVec* d, const char* what) {
+        i32 dx = d->vx, dy = d->vy, dz = d->vz;
         u32 len2 = (u32)(dx * dx) + (u32)(dy * dy) + (u32)(dz * dz);
         u32 len  = IsqrtU32(len2);
         if (len == 0) {
-            fprintf(stderr, "[assets] %s: zero light dir, defaulting to +z\n", path);
-            s_level.light.dir.vx = 0;
-            s_level.light.dir.vy = 0;
-            s_level.light.dir.vz = (i16)FX_ONE;
+            fprintf(stderr, "[assets] %s: zero %s dir, defaulting to +z\n", path, what);
+            d->vx = 0; d->vy = 0; d->vz = (i16)FX_ONE;
         } else {
-            s_level.light.dir.vx = (i16)(dx * FX_ONE / (i32)len);
-            s_level.light.dir.vy = (i16)(dy * FX_ONE / (i32)len);
-            s_level.light.dir.vz = (i16)(dz * FX_ONE / (i32)len);
+            d->vx = (i16)(dx * FX_ONE / (i32)len);
+            d->vy = (i16)(dy * FX_ONE / (i32)len);
+            d->vz = (i16)(dz * FX_ONE / (i32)len);
         }
-    }
+    };
+    normalize_dir(&s_level.light.dir, "light");
+    if (s_level.light.fil_en) normalize_dir(&s_level.light.fdir, "fill");
 
     s_level.nobjects = nobjects;
     if (nobjects) {
@@ -669,7 +686,7 @@ static bool ParseLevel(const u8* buf, u32 size, const char* path) {
             return false;
         }
         for (u32 i = 0; i < nobjects; i++) {
-            const u8* r = buf + kLvlHeaderSize + i * kLvlObjSize;
+            const u8* r = buf + hdr_size + i * kLvlObjSize;
             LevelObject* o = &s_level.objects[i];
             memset(o, 0, sizeof(*o));
             memcpy(o->mesh, r, 32);

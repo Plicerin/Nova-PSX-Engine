@@ -65,6 +65,11 @@ struct LevelLight {
     u8  amb_r, amb_g, amb_b;
     u8  dif_r, dif_g, dif_b;
     SVec dir;               // 4.12, need not be normalized in file; loader normalizes
+    // Second, independently-coloured directional "fill" (level format v2).
+    // Zeroed (disabled) for v1 levels. Gives two-tone colored lighting.
+    u8  fil_en;
+    u8  fil_r, fil_g, fil_b;
+    SVec fdir;              // 4.12, loader normalizes
 };
 
 struct Level {

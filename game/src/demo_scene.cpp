@@ -85,6 +85,8 @@ void Demo_Init(Level* level) {
     }
 
     Fx_Init();
+    // Ambient mote haze filling the play volume (aquatic-lab atmosphere).
+    Fx_AmbientInit(LVec{ -900, -1050, -300 }, LVec{ 900, -30, 1700 });
     if (Combat_Active()) Combat_Init();
 
     s_robot_rig    = Rig_Find("robot");
@@ -113,6 +115,7 @@ void Demo_Update() {
     if (!s_level) return;
     s_tick++;
     Fx_Update();
+    Fx_AmbientUpdate();
 
     // Combat owns all input in combat mode (no walk-camera bleed-through).
     if (Combat_Active()) { Combat_Update(); return; }
@@ -231,6 +234,7 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Anim_Draw(rc, s_shard_rig, &s_shard_anim, &sm);
     }
 
+    Fx_AmbientRender(rc);
     Fx_Render(rc);
 
     // Glow billboard 0.8 m above the gem, opposite bob phase, additive.

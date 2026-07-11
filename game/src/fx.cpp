@@ -132,3 +132,84 @@ void Fx_Render(RenderContext* rc) {
                          true, 1);                                  // additive
     }
 }
+
+// --- ambient drift ----------------------------------------------------------
+
+enum { MAX_AMBIENT = 48 };
+
+struct Mote {
+    LVec pos;
+    i32  rise;         // per-tick upward speed (stored positive; y decreases)
+    i32  swirl;        // horizontal sway phase, PS1 angle units
+    i32  swirl_spd;    // sway speed
+    i32  size;
+    u8   r, g, b;
+};
+
+static Mote s_amb[MAX_AMBIENT];
+static bool s_amb_on = false;
+static LVec s_amb_min, s_amb_max;      // AABB (y down: min = top, max = floor)
+static u32  s_amb_tick = 0;
+
+// A cool aquatic-lab palette with an occasional warm speck for contrast.
+static void MoteColor(Mote* m) {
+    switch (Rnd() % 8) {
+    case 0: case 1: m->r = 70;  m->g = 200; m->b = 210; break;  // cyan
+    case 2: case 3: m->r = 40;  m->g = 150; m->b = 165; break;  // teal
+    case 4: case 5: m->r = 90;  m->g = 165; m->b = 235; break;  // pale blue
+    case 6:         m->r = 200; m->g = 175; m->b = 120; break;  // warm dust
+    default:        m->r = 150; m->g = 220; m->b = 225; break;  // bright cyan
+    }
+}
+
+static void MoteSpawn(Mote* m, bool anywhere) {
+    m->pos.vx = RndRange(s_amb_min.vx, s_amb_max.vx + 1);
+    m->pos.vz = RndRange(s_amb_min.vz, s_amb_max.vz + 1);
+    // anywhere: initial seed fills the whole column; respawn enters at the floor
+    m->pos.vy = anywhere ? RndRange(s_amb_min.vy, s_amb_max.vy + 1)
+                         : s_amb_max.vy;
+    m->rise      = RndRange(1, 4);
+    m->swirl     = RndRange(0, ANGLE_FULL);
+    m->swirl_spd = RndRange(10, 34);
+    m->size      = RndRange(20, 64);
+    MoteColor(m);
+}
+
+void Fx_AmbientInit(LVec vmin, LVec vmax) {
+    s_amb_min = vmin;
+    s_amb_max = vmax;
+    s_amb_on = true;
+    s_amb_tick = 0;
+    for (int i = 0; i < MAX_AMBIENT; i++) MoteSpawn(&s_amb[i], true);
+}
+
+void Fx_AmbientClear() { s_amb_on = false; }
+
+void Fx_AmbientUpdate() {
+    if (!s_amb_on) return;
+    s_amb_tick++;
+    for (int i = 0; i < MAX_AMBIENT; i++) {
+        Mote* m = &s_amb[i];
+        m->pos.vy -= m->rise;                              // rise (y down)
+        i32 ph = (i32)((s_amb_tick * (u32)m->swirl_spd + (u32)m->swirl)
+                       & (ANGLE_FULL - 1));
+        m->pos.vx += (Csin(ph) * 2) >> FX_SHIFT;           // gentle sway
+        m->pos.vz += (Ccos(ph) * 2) >> FX_SHIFT;
+        if (m->pos.vy < s_amb_min.vy) MoteSpawn(m, false); // wrap to floor
+    }
+}
+
+void Fx_AmbientRender(RenderContext* rc) {
+    if (!rc || !s_glow || !s_amb_on) return;
+    for (int i = 0; i < MAX_AMBIENT; i++) {
+        const Mote* m = &s_amb[i];
+        // twinkle: brightness oscillates so motes shimmer rather than sit flat
+        i32 ph = (i32)((s_amb_tick * 24u + (u32)(i * 311)) & (ANGLE_FULL - 1));
+        i32 tw = 1536 + ((Csin(ph) * 1024) >> FX_SHIFT);   // ~0.375..0.625 in 4.12
+        u8 r = (u8)(((i32)m->r * tw) >> FX_SHIFT);
+        u8 g = (u8)(((i32)m->g * tw) >> FX_SHIFT);
+        u8 b = (u8)(((i32)m->b * tw) >> FX_SHIFT);
+        Rc_DrawBillboard(rc, s_glow, m->pos, m->size, m->size, r, g, b,
+                         true, 1);                          // additive
+    }
+}

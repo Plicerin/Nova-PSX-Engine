@@ -18,3 +18,13 @@ void Fx_Splash(LVec pos, int count);
 void Fx_Shake(i32 amplitude, i32 ticks);
 // Current camera offset (add to the scene camera position each frame).
 LVec Fx_CamOffset();
+
+// --- ambient particle drift (atmosphere) -----------------------------------
+// A looping field of slow additive motes bounded to an AABB (engine units,
+// y down: vmin is the upper/near corner, vmax the lower/far). Motes rise and
+// sway, wrapping back to the floor -- steady mood haze, independent of the
+// combat burst pool. Init enables it; Clear disables.
+void Fx_AmbientInit(LVec vmin, LVec vmax);
+void Fx_AmbientClear();
+void Fx_AmbientUpdate();
+void Fx_AmbientRender(RenderContext* rc);

@@ -115,11 +115,18 @@ def pack_level(json_path, out_path):
     }
 
     light_src = data.get("light") or {}
+    fill_src = light_src.get("fill") or {}
+    fill_col = _col3(fill_src.get("color"))
     light = {
         "enabled": 1 if light_src.get("enabled", False) else 0,
         "ambient": _col3(light_src.get("ambient")),
         "diffuse": _col3(light_src.get("diffuse")),
         "dir": _dir_to_fx12(light_src.get("direction", [0.0, -1.0, 0.0])),
+        "fill": {
+            "enabled": 1 if fill_src.get("enabled", False) else 0,
+            "r": fill_col[0], "g": fill_col[1], "b": fill_col[2],
+            "dir": _dir_to_fx12(fill_src.get("direction", [0.0, -1.0, 0.0])),
+        },
     }
 
     clear_color = _col3(data.get("clear_color"))
