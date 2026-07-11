@@ -87,6 +87,7 @@ def compile_rig(entry, rig_dir, anim_dir, source_root="."):
             "mesh": b.get("mesh", ""),
             "parent": parent,
             "bind_pos": _units_pos(b.get("pos", (0, 0, 0))),
+            "bind_rot": _units_rot(b.get("rot", (0, 0, 0))),
         })
 
     os.makedirs(rig_dir, exist_ok=True)

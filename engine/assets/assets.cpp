@@ -361,7 +361,7 @@ static bool LoadMeshFile(const char* path) {
 
 // ------------------------------------------------------------- .rigbin
 static const u32 kRigHeaderSize = 44;
-static const u32 kRigBoneSize   = 56;
+static const u32 kRigBoneSize   = 64;
 
 static bool LoadRigFile(const char* path) {
     u32 size = 0;
@@ -376,8 +376,9 @@ static bool LoadRigFile(const char* path) {
             fprintf(stderr, "[assets] %s: not a PXRG file\n", path);
             break;
         }
-        if (RdU32(buf + 4) != 1) {
-            fprintf(stderr, "[assets] %s: unsupported rig version\n", path);
+        if (RdU32(buf + 4) != 2) {
+            fprintf(stderr, "[assets] %s: unsupported rig version %u (want 2)\n",
+                    path, (unsigned)RdU32(buf + 4));
             break;
         }
         u32 nbones = RdU32(buf + 40);
@@ -404,6 +405,9 @@ static bool LoadRigFile(const char* path) {
             rb->bind_pos.vx = RdI16(b + 50);
             rb->bind_pos.vy = RdI16(b + 52);
             rb->bind_pos.vz = RdI16(b + 54);
+            rb->bind_rot.vx = RdI16(b + 56);
+            rb->bind_rot.vy = RdI16(b + 58);
+            rb->bind_rot.vz = RdI16(b + 60);
             if (rb->parent >= (i16)i || (i == 0 && rb->parent != -1) ||
                 (i > 0 && rb->parent < 0)) {
                 fprintf(stderr, "[assets] %s: bone %u bad parent %d "

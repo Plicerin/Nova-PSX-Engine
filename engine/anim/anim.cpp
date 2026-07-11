@@ -83,6 +83,16 @@ void Anim_Draw(RenderContext* rc, const Rig* rig, const AnimState* st,
 
         Mat local;
         Gte_RotMatrix(&rot, &local);
+        if (b->bind_rot.vx | b->bind_rot.vy | b->bind_rot.vz) {
+            // Hinge frame: keys rotate about the bind_rot-tilted axes while
+            // the segment mesh stays authored in the parent-aligned frame:
+            //   local = Rb * Rkey * RbT
+            Mat rb, rbt, tmp;
+            Gte_RotMatrix(&b->bind_rot, &rb);
+            Gte_TransposeRot(&rb, &rbt);
+            Gte_CompMatrix(&local, &rbt, &tmp);   // Rkey * RbT
+            Gte_CompMatrix(&rb, &tmp, &local);    // Rb * (Rkey * RbT)
+        }
         local.t[0] = off.vx;
         local.t[1] = off.vy;
         local.t[2] = off.vz;

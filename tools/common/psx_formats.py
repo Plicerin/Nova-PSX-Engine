@@ -316,24 +316,26 @@ assert struct.calcsize(_MF_REC) == 108
 
 MAGIC_RIG = b"PXRG"
 MAGIC_ANIM = b"PXAN"
+RIG_VERSION = 2
 _RIG_HDR = "<4sI32sI"                 # magic, version, name, nbones (44 B)
-_RIG_BONE = "<16s32sh3h"              # name, mesh, parent, bind xyz (56 B)
+_RIG_BONE = "<16s32sh3h3h2x"          # name, mesh, parent, bind pos+rot (64 B)
 _ANIM_HDR = "<4sI32s32sIHHB3x"        # magic, ver, name, rig, nbones,
                                       # nkeys, key_ms, loop (84 B)
 _ANIM_KEY = "<3h3h"                   # rot xyz, pos xyz (12 B)
 assert struct.calcsize(_RIG_HDR) == 44
-assert struct.calcsize(_RIG_BONE) == 56
+assert struct.calcsize(_RIG_BONE) == 64
 assert struct.calcsize(_ANIM_HDR) == 84
 assert struct.calcsize(_ANIM_KEY) == 12
 
 
 def write_rigbin(path, *, name, bones):
     """bones: [{name, mesh(str, '' = none), parent(int), bind_pos(x,y,z engine
-    units)}] — parents must precede children, bone 0 is the root."""
+    units), bind_rot?(x,y,z PS1 angle units)}] — parents precede children,
+    bone 0 is the root. bind_rot tilts the hinge frame for the anim keys."""
     if not 1 <= len(bones) <= 32:
         raise PackError("rig '%s': %d bones (1..32 allowed)" % (name, len(bones)))
     with open(path, "wb") as f:
-        f.write(struct.pack(_RIG_HDR, MAGIC_RIG, FORMAT_VERSION,
+        f.write(struct.pack(_RIG_HDR, MAGIC_RIG, RIG_VERSION,
                             pack_name(name), len(bones)))
         for i, b in enumerate(bones):
             parent = int(b["parent"])
@@ -341,9 +343,11 @@ def write_rigbin(path, *, name, bones):
                 raise PackError("rig '%s': bone %d ('%s') bad parent %d"
                                 % (name, i, b["name"], parent))
             px, py, pz = (check_i16(int(round(v)), "bind_pos") for v in b["bind_pos"])
+            rx, ry, rz = (check_i16(int(round(v)), "bind_rot")
+                          for v in b.get("bind_rot", (0, 0, 0)))
             f.write(struct.pack(_RIG_BONE, pack_name(b["name"], 16),
                                 pack_name(b.get("mesh", ""), 32),
-                                parent, px, py, pz))
+                                parent, px, py, pz, rx, ry, rz))
 
 
 def write_animbin(path, *, name, rig_name, nbones, nkeys, key_ms, loop, keys):

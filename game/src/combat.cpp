@@ -96,16 +96,28 @@ void Combat_Init() {
     s_companion.rot  = { 0, (i16)(1024 + 200), 0 };
     StartClip(&s_companion, s_companion.idle);
 
+    // Enemy roster: pick one of the fold-creatures each battle.
+    static u32 s_roster = 1;   // first battle shows PRISM, then alternates
+    s_roster++;
     s_enemy = {};
-    s_enemy.name     = "SHARD";
-    s_enemy.rig      = Rig_Find("shard");
-    s_enemy.idle     = Anim_Find("shard_idle");
-    s_enemy.attack   = Anim_Find("shard_attack");
+    if (s_roster & 1) {
+        s_enemy.name   = "SHARD";
+        s_enemy.rig    = Rig_Find("shard");
+        s_enemy.idle   = Anim_Find("shard_idle");
+        s_enemy.attack = Anim_Find("shard_attack");
+        s_enemy.hit    = Anim_Find("shard_hit");
+        s_enemy.max_hp = s_enemy.hp = 70;
+    } else {
+        s_enemy.name   = "PRISM";
+        s_enemy.rig    = Rig_Find("prism");
+        s_enemy.idle   = Anim_Find("prism_idle");
+        s_enemy.attack = Anim_Find("prism_attack");
+        s_enemy.hit    = Anim_Find("prism_hit");
+        s_enemy.max_hp = s_enemy.hp = 64;
+    }
     s_enemy.defend   = nullptr;
-    s_enemy.hit      = Anim_Find("shard_hit");
     s_enemy.pos      = { (i32)(2.3 * 256), 0, (i32)(0.5 * 256) };
     s_enemy.rot      = { 0, (i16)3072, 0 };          // face -x (the player)
-    s_enemy.max_hp   = s_enemy.hp = 70;
 
     StartClip(&s_player, s_player.idle);
     StartClip(&s_enemy, s_enemy.idle);

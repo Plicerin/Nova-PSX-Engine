@@ -153,21 +153,26 @@ Header:
 | offset | size | field |
 |---|---|---|
 | 0  | 4  | magic `PXRG` |
-| 4  | 4  | u32 version = 1 |
+| 4  | 4  | u32 version = 2 |
 | 8  | 32 | name |
 | 40 | 4  | u32 nbones (1..32) |
 
-Then nbones × 56-byte bone records:
+Then nbones × 64-byte bone records:
 | offset | size | field |
 |---|---|---|
 | 0  | 16 | bone name |
 | 16 | 32 | segment mesh asset name (all-NUL = no geometry) |
 | 48 | 2  | i16 parent index (-1 for root) |
 | 50 | 6  | SVec bind_pos: i16 x,y,z — rest offset from parent, engine units |
+| 56 | 6  | SVec bind_rot: i16 x,y,z — hinge frame, PS1 angle units |
+| 62 | 2  | pad |
 
-Bone local transform at runtime:
-`L = T(bind_pos + key_pos) * RotMatrix(key_rot)`; world = parent_world * L
-(composed with `Gte_CompMatrix`, 4.12 truncating — authentic drift welcome).
+Bone local transform at runtime (Rb = RotMatrix(bind_rot)):
+`L = T(bind_pos + key_pos) * Rb * RotMatrix(key_rot) * transpose(Rb)`;
+world = parent_world * L (Gte_CompMatrix, 4.12 truncating — drift welcome).
+Segment meshes stay authored in the parent-aligned frame; bind_rot only
+tilts the axes the animation keys rotate about, so a fold hinge can lie
+along any edge (bind_rot = 0 degenerates to plain euler keys).
 
 ## .animbin — animation clip ('PXAN')
 

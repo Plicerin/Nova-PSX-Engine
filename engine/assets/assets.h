@@ -87,6 +87,7 @@ struct RigBone {
     char        mesh_name[32];  // all-NUL = no geometry
     i16         parent;         // -1 for root (bone 0)
     SVec        bind_pos;       // rest offset from parent, engine units
+    SVec        bind_rot;       // hinge frame, PS1 angle units (0 = parent axes)
     const Mesh* mesh;           // resolved at load, may be null
 };
 
