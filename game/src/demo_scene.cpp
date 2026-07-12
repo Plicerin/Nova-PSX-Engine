@@ -86,7 +86,11 @@ void Demo_Init(Level* level) {
 
     Fx_Init();
     // Ambient mote haze filling the play volume (aquatic-lab atmosphere).
-    Fx_AmbientInit(LVec{ -900, -1050, -300 }, LVec{ 900, -30, 1700 });
+    // The combat arena is a much larger room than the test chamber.
+    if (Combat_Active())
+        Fx_AmbientInit(LVec{ -1900, -1600, -1500 }, LVec{ 1900, -30, 2400 });
+    else
+        Fx_AmbientInit(LVec{ -900, -1050, -300 }, LVec{ 900, -30, 1700 });
     if (Combat_Active()) Combat_Init();
 
     s_robot_rig    = Rig_Find("robot");

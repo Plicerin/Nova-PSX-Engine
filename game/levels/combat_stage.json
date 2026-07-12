@@ -4,7 +4,7 @@
     {"mesh": "arena",       "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
     {"mesh": "arena_water", "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]}
   ],
-  "camera_start": {"position": [0, 11.0, -7.5], "rotation": [46, 0, 0]},
+  "camera_start": {"position": [0, 8.5, -7.5], "rotation": [48, 0, 0]},
   "fog": {"enabled": true, "color": [18, 54, 66], "start": 9.0, "end": 34.0},
   "clear_color": [12, 34, 44],
   "light": {"enabled": true, "ambient": [30, 50, 82], "diffuse": [172, 196, 186], "direction": [2.5, -4.0, -2.0],

@@ -512,12 +512,13 @@ void Combat_DrawUI(Framebuffer* fb) {
     if (s_phase == PH_MENU) {
         if (s_enemy_wind)
             DrawCentered(fb, 62, 255, 120, 110, "! ENEMY CHARGING - BRACE");
-        Debug_Text(fb, 8, 112, 120, 140, 140, "[I] STATUS");
-        FillRect(fb, 6, 124, 132, 40, 10, 20, 22);
+        // Bottom-left: the fighters own the middle of the top-down 3/4 frame.
+        Debug_Text(fb, 8, 126, 120, 140, 140, "[I] STATUS");
+        FillRect(fb, 6, 136, 132, 40, 10, 20, 22);
         bool special_ok = s_player.charge >= kSpecialCost;
-        DrawMenuRow(fb, 128, ACT_ATTACK,  "ATTACK", false);
-        DrawMenuRow(fb, 139, ACT_DEFEND,  "DEFEND", false);
-        DrawMenuRow(fb, 150, ACT_SPECIAL,
+        DrawMenuRow(fb, 140, ACT_ATTACK,  "ATTACK", false);
+        DrawMenuRow(fb, 151, ACT_DEFEND,  "DEFEND", false);
+        DrawMenuRow(fb, 162, ACT_SPECIAL,
                     special_ok ? "OVERLOAD" : "OVERLOAD [LOCK]", !special_ok);
     }
 

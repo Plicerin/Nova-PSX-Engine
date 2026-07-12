@@ -27,6 +27,10 @@ static int s_shot_count = 0;
 static i64 s_max_frames = -1;   // <0 = run until quit
 static int s_debug_page  = 0;   // --debug N: start with overlay page N
 static const char* s_level_path = "build/assets/levels/test_chamber.lvlbin";
+static bool s_level_explicit = false;   // --level given: don't auto-pick a stage
+// Combat runs in its own arena (top-down 3/4 camera, water floor) unless the
+// caller asked for a specific level.
+static const char* kCombatLevel = "build/assets/levels/combat_stage.lvlbin";
 static int  s_resmode = -1;     // --resmode N: override internal resolution index
 static int  s_fov     = -1;     // --fov N: override horizontal FOV
 static bool s_noui    = false;  // --noui: skip title/help overlay
@@ -75,6 +79,7 @@ int main(int argc, char** argv) {
             g_config.zbuffer = true;   // ground-truth depth (debug comparison)
         } else if (strcmp(argv[i], "--level") == 0 && i + 1 < argc) {
             s_level_path = argv[++i];
+            s_level_explicit = true;
         } else if (strcmp(argv[i], "--resmode") == 0 && i + 1 < argc) {
             s_resmode = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--fov") == 0 && i + 1 < argc) {
@@ -114,6 +119,9 @@ int main(int argc, char** argv) {
             fprintf(stderr, "main: unknown argument '%s'\n", argv[i]);
         }
     }
+
+    // Combat defaults to the arena stage; --level (either order) still wins.
+    if (Combat_Active() && !s_level_explicit) s_level_path = kCombatLevel;
 
     Fixed_Init();
     if (!Plat_Init("PSX-Authentic Engine", win_w, win_h)) {
