@@ -19,6 +19,14 @@ void Fx_Shake(i32 amplitude, i32 ticks);
 // Current camera offset (add to the scene camera position each frame).
 LVec Fx_CamOffset();
 
+// --- transient coloured lights (impact flashes) -----------------------------
+// A short-lived coloured point light at pos. Injected into the render context's
+// free point-light slots each frame and faded out over its lifetime, so hits
+// and specials actually throw light on the room. radius in engine units.
+void Fx_AddLight(LVec pos, u8 r, u8 g, u8 b, i32 radius, i32 ticks);
+// Fold active flashes into rc->light (call after copying the level's lights).
+void Fx_LightsApply(RenderContext* rc);
+
 // --- ambient particle drift (atmosphere) -----------------------------------
 // A looping field of slow additive motes bounded to an AABB (engine units,
 // y down: vmin is the upper/near corner, vmax the lower/far). Motes rise and

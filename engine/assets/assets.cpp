@@ -664,10 +664,10 @@ static bool ParseLevel(const u8* buf, u32 size, const char* path) {
     }
     if (version >= 3) {
         u32 np = buf[108];
-        if (np > (u32)MAX_POINT_LIGHTS) {
+        if (np > (u32)LEVEL_MAX_POINT_LIGHTS) {
             fprintf(stderr, "[assets] %s: %u point lights, clamping to %d\n",
-                    path, (unsigned)np, MAX_POINT_LIGHTS);
-            np = (u32)MAX_POINT_LIGHTS;
+                    path, (unsigned)np, LEVEL_MAX_POINT_LIGHTS);
+            np = (u32)LEVEL_MAX_POINT_LIGHTS;
         }
         s_level.light.npoints = (u8)np;
         for (u32 i = 0; i < np; i++) {

@@ -181,6 +181,19 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     rc->fog   = s_level->fog;
     rc->light = s_level->light;
 
+    // Lamps breathe (+/-10%), each on its own phase, so the room isn't static.
+    for (u32 i = 0; i < rc->light.npoints; i++) {
+        const LevelPoint* src = &s_level->light.points[i];
+        i32 ph = (i32)((s_tick * 17u + i * 937u) & (ANGLE_FULL - 1));
+        i32 k  = 3686 + ((Csin(ph) * 410) >> 12);        // ~0.90 .. 1.10 (4.12)
+        LevelPoint* p = &rc->light.points[i];
+        p->r = (u8)ClampI32(((i32)src->r * k) >> 12, 0, 255);
+        p->g = (u8)ClampI32(((i32)src->g * k) >> 12, 0, 255);
+        p->b = (u8)ClampI32(((i32)src->b * k) >> 12, 0, 255);
+    }
+    // Transient impact/special flashes take the remaining slots.
+    Fx_LightsApply(rc);
+
     Camera scene_cam;
     scene_cam.pos    = s_pos;
     scene_cam.rot    = { (i16)s_pitch, (i16)s_yaw, 0 };

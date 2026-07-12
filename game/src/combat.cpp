@@ -178,12 +178,16 @@ static void DealDamage(Fighter* to, int base, int spread, u8 kind) {
 
     LVec chest = to->pos;
     chest.vy -= 280;                          // ~1.1 m up (y down)
-    if (blocked)
+    if (blocked) {
         Fx_Burst(chest, 12, 11, 150, 215, 255);          // blue block sparks
-    else if (kind == 3)
+        Fx_AddLight(chest, 90, 180, 255, 3 * 256, 14);   // cold block flash
+    } else if (kind == 3) {
         Fx_Burst(chest, 22, 20, 255, 240, 170);          // white-hot crit
-    else
+        Fx_AddLight(chest, 255, 235, 170, 6 * 256, 22);  // big hot flash
+    } else {
         Fx_Burst(chest, 12, 14, 255, 210, 130);          // impact sparks
+        Fx_AddLight(chest, 255, 170, 90, 4 * 256, 14);   // warm impact flash
+    }
     Fx_Shake((kind == 3 ? 24 : 14) + dmg, kind == 3 ? 16 : 12);
 }
 
@@ -275,9 +279,12 @@ void Combat_Update() {
                 DealDamage(&s_enemy, 14, 9, 0);
                 s_phase = PH_RESOLVE_P;
             } else if (s_pending == ACT_SPECIAL) {
-                // OVERLOAD: ASTRA's morph-strike. Big, hot, shakes the room.
+                // OVERLOAD: ASTRA's morph-strike. Big, hot, lights the room.
                 LVec c = s_enemy.pos; c.vy -= 200;
                 Fx_Burst(c, 16, 26, 180, 245, 255);
+                Fx_AddLight(c, 140, 240, 255, 9 * 256, 26);   // cyan blast light
+                LVec self = s_player.pos; self.vy -= 260;
+                Fx_AddLight(self, 120, 220, 255, 5 * 256, 18); // muzzle-side glow
                 DealDamage(&s_enemy, 30, 16, 3);
                 s_phase = PH_RESOLVE_P;
             } else {  // DEFEND: no enemy reaction, straight to the ally turn
@@ -319,10 +326,12 @@ void Combat_Update() {
                 AddFloat(heal, kPlayerAnchorX, kPlayerAnchorY, 2);
                 LVec c = s_player.pos; c.vy -= 260;
                 Fx_Burst(c, 14, 12, 120, 255, 190);       // green repair motes
+                Fx_AddLight(c, 90, 255, 165, 4 * 256, 20);
                 s_comp_cd = 3;
             } else {
                 LVec c = s_enemy.pos; c.vy -= 240;
                 Fx_Burst(c, 10, 15, 255, 190, 120);       // arc-zap
+                Fx_AddLight(c, 255, 180, 100, 3 * 256, 12);
                 DealDamage(&s_enemy, 7, 5, 0);
             }
         }
@@ -355,6 +364,7 @@ void Combat_Update() {
                 s_enemy_wind = true;
                 LVec c = s_enemy.pos; c.vy -= 220;
                 Fx_Burst(c, 10, 8, 120, 200, 255);        // cold gather-glow
+                Fx_AddLight(c, 110, 190, 255, 5 * 256, 34);   // menacing charge light
                 s_phase = PH_RESOLVE_C;                    // skip a real attack
                 s_timer = 20;
             } else {

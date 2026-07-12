@@ -69,7 +69,11 @@ struct LevelPoint {
     i32  radius;            // engine units; intensity falls linearly to 0
 };
 
-enum { MAX_POINT_LIGHTS = 4 };
+// Runtime capacity is larger than the file's: a level supplies up to
+// LEVEL_MAX_POINT_LIGHTS static lamps, and transient FX flashes (impacts,
+// specials) are injected into the remaining slots each frame.
+enum { MAX_POINT_LIGHTS = 8 };
+enum { LEVEL_MAX_POINT_LIGHTS = 4 };
 
 struct LevelLight {
     u8  enabled;

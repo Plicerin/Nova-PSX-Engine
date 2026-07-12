@@ -17,6 +17,17 @@ struct Particle {
     u8   gravity;          // 0/1: apply per-tick downward pull
 };
 
+enum { MAX_FX_LIGHTS = 4 };
+
+// Short-lived coloured lamp thrown by an impact/special.
+struct FxLight {
+    LVec pos;
+    u8   r, g, b;
+    i32  radius;
+    i32  life, max_life;
+};
+
+static FxLight        s_fxlight[MAX_FX_LIGHTS];
 static Particle       s_pool[MAX_PARTICLES];
 static const TexInfo* s_glow = nullptr;
 static u32            s_seed = 0xC0FFEE;
@@ -29,6 +40,7 @@ static i32 RndRange(i32 lo, i32 hi) {          // inclusive lo, exclusive hi
 
 void Fx_Init() {
     memset(s_pool, 0, sizeof(s_pool));
+    memset(s_fxlight, 0, sizeof(s_fxlight));
     s_glow = Tex_Find("orb_glow");
     s_shake_amp = s_shake_ticks = 0;
     s_shake_total = 1;
@@ -104,6 +116,8 @@ LVec Fx_CamOffset() {
 
 void Fx_Update() {
     if (s_shake_ticks > 0) s_shake_ticks--;
+    for (int i = 0; i < MAX_FX_LIGHTS; i++)
+        if (s_fxlight[i].life > 0) s_fxlight[i].life--;   // flashes decay
     for (int i = 0; i < MAX_PARTICLES; i++) {
         Particle* p = &s_pool[i];
         if (p->life <= 0) continue;
@@ -131,6 +145,39 @@ void Fx_Render(RenderContext* rc) {
         Rc_DrawBillboard(rc, s_glow, p->pos, size, size, r, g, b,
                          true, 1);                                  // additive
     }
+}
+
+// --- transient coloured lights ----------------------------------------------
+
+void Fx_AddLight(LVec pos, u8 r, u8 g, u8 b, i32 radius, i32 ticks) {
+    if (ticks <= 0 || radius <= 0) return;
+    FxLight* slot = nullptr;
+    for (int i = 0; i < MAX_FX_LIGHTS; i++) {
+        if (s_fxlight[i].life <= 0) { slot = &s_fxlight[i]; break; }
+        // all busy: steal the one closest to expiring
+        if (!slot || s_fxlight[i].life < slot->life) slot = &s_fxlight[i];
+    }
+    slot->pos = pos;
+    slot->r = r; slot->g = g; slot->b = b;
+    slot->radius = radius;
+    slot->life = slot->max_life = ticks;
+}
+
+void Fx_LightsApply(RenderContext* rc) {
+    if (!rc) return;
+    u32 n = rc->light.npoints;
+    for (int i = 0; i < MAX_FX_LIGHTS && n < (u32)MAX_POINT_LIGHTS; i++) {
+        const FxLight* f = &s_fxlight[i];
+        if (f->life <= 0) continue;
+        const i32 t = (f->life << FX_SHIFT) / f->max_life;   // 1 -> 0
+        LevelPoint* p = &rc->light.points[n++];
+        p->r = (u8)(((i32)f->r * t) >> FX_SHIFT);            // fade the colour
+        p->g = (u8)(((i32)f->g * t) >> FX_SHIFT);
+        p->b = (u8)(((i32)f->b * t) >> FX_SHIFT);
+        p->pos = f->pos;
+        p->radius = f->radius;
+    }
+    rc->light.npoints = (u8)n;
 }
 
 // --- ambient drift ----------------------------------------------------------
