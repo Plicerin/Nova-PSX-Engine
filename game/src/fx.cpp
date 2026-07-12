@@ -135,7 +135,7 @@ void Fx_Render(RenderContext* rc) {
 
 // --- ambient drift ----------------------------------------------------------
 
-enum { MAX_AMBIENT = 48 };
+enum { MAX_AMBIENT = 72 };
 
 struct Mote {
     LVec pos;
@@ -171,7 +171,7 @@ static void MoteSpawn(Mote* m, bool anywhere) {
     m->rise      = RndRange(1, 4);
     m->swirl     = RndRange(0, ANGLE_FULL);
     m->swirl_spd = RndRange(10, 34);
-    m->size      = RndRange(20, 64);
+    m->size      = RndRange(45, 130);
     MoteColor(m);
 }
 
@@ -205,7 +205,7 @@ void Fx_AmbientRender(RenderContext* rc) {
         const Mote* m = &s_amb[i];
         // twinkle: brightness oscillates so motes shimmer rather than sit flat
         i32 ph = (i32)((s_amb_tick * 24u + (u32)(i * 311)) & (ANGLE_FULL - 1));
-        i32 tw = 1536 + ((Csin(ph) * 1024) >> FX_SHIFT);   // ~0.375..0.625 in 4.12
+        i32 tw = 2600 + ((Csin(ph) * 1400) >> FX_SHIFT);   // ~0.29..0.98 in 4.12
         u8 r = (u8)(((i32)m->r * tw) >> FX_SHIFT);
         u8 g = (u8)(((i32)m->g * tw) >> FX_SHIFT);
         u8 b = (u8)(((i32)m->b * tw) >> FX_SHIFT);

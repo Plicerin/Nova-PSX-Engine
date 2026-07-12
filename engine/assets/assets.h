@@ -60,6 +60,17 @@ struct LevelFog {
     i32 start_z, end_z;     // view-space, engine units
 };
 
+// Coloured point light (level format v3): a positioned lamp with linear
+// distance falloff. Unlike a directional light, this varies across a flat
+// surface, so it paints a visible coloured pool on floors/walls.
+struct LevelPoint {
+    u8   r, g, b;
+    LVec pos;               // world, engine units
+    i32  radius;            // engine units; intensity falls linearly to 0
+};
+
+enum { MAX_POINT_LIGHTS = 4 };
+
 struct LevelLight {
     u8  enabled;
     u8  amb_r, amb_g, amb_b;
@@ -70,6 +81,9 @@ struct LevelLight {
     u8  fil_en;
     u8  fil_r, fil_g, fil_b;
     SVec fdir;              // 4.12, loader normalizes
+    // Coloured point lights (level format v3); zeroed for v1/v2.
+    u8  npoints;
+    LevelPoint points[MAX_POINT_LIGHTS];
 };
 
 struct Level {

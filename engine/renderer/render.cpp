@@ -18,6 +18,7 @@ static i32 s_sz[RC_MAX_VERTS];
 static i32 s_p[RC_MAX_VERTS];
 static u8  s_lit[RC_MAX_VERTS][3];
 static u8  s_spec[RC_MAX_VERTS][3];   // additive specular highlight, per vertex
+static u8  s_plit[RC_MAX_VERTS][3];   // additive coloured point-light pools
 
 void Rc_Init(RenderContext* rc) {
     if (!rc) return;
@@ -97,6 +98,25 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         const int fil[3] = { rc->light.fil_r, rc->light.fil_g, rc->light.fil_b };
         LVec lf = { 0, 0, 0 };
         if (fill_on) Gte_ApplyRot(&mrot_t, &rc->light.fdir, &lf);
+
+        // Coloured point lights, brought into MODEL space so the per-vertex
+        // maths matches the normals. Assumes the object's rotation part is
+        // orthonormal (level objects are authored at unit scale); a scaled
+        // object would need a true inverse rather than a transpose.
+        const int npl = (int)rc->light.npoints;
+        LVec plp[MAX_POINT_LIGHTS];
+        i32  plrad[MAX_POINT_LIGHTS];
+        int  plcol[MAX_POINT_LIGHTS][3];
+        for (int L = 0; L < npl; L++) {
+            const LevelPoint* lp = &rc->light.points[L];
+            LVec d = { lp->pos.vx - model->t[0],
+                       lp->pos.vy - model->t[1],
+                       lp->pos.vz - model->t[2] };
+            Gte_ApplyRotL(&mrot_t, &d, &plp[L]);
+            plrad[L]   = lp->radius;
+            plcol[L][0] = lp->r; plcol[L][1] = lp->g; plcol[L][2] = lp->b;
+        }
+
         for (u32 i = 0; i < mesh->nverts; i++) {
             const SVec* n = &mesh->norms[i];
             i32 dot = (i32)n->vx * ld.vx + (i32)n->vy * ld.vy + (i32)n->vz * ld.vz;
@@ -106,10 +126,38 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
                 i32 df = (i32)n->vx * lf.vx + (i32)n->vy * lf.vy + (i32)n->vz * lf.vz;
                 If = ClampI32((-df) >> 12, 0, 4096);
             }
+            // Per-point-light factor: linear distance falloff * N.L (4.12).
+            i32 pfac[MAX_POINT_LIGHTS];
+            for (int L = 0; L < npl; L++) {
+                const SVec* v = &mesh->verts[i];
+                i32 dx = plp[L].vx - v->vx;
+                i32 dy = plp[L].vy - v->vy;
+                i32 dz = plp[L].vz - v->vz;
+                i64 d2 = (i64)dx * dx + (i64)dy * dy + (i64)dz * dz;
+                i64 rr = (i64)plrad[L];
+                if (d2 >= rr * rr) { pfac[L] = 0; continue; }   // out of range
+                u32 dist  = IsqrtU32((u32)d2);
+                i32 atten = (i32)((((rr - (i64)dist) << 12)) / rr);  // 0..4096
+                i64 nd    = (i64)n->vx * dx + (i64)n->vy * dy + (i64)n->vz * dz;
+                i32 ndl   = 0;
+                if (nd > 0)
+                    ndl = (dist == 0) ? FX_ONE
+                                      : ClampI32((i32)(nd / (i64)dist), 0, FX_ONE);
+                pfac[L] = (atten * ndl) >> 12;
+            }
             for (int c = 0; c < 3; c++) {
                 int L = amb[c] + ((dif[c] * I) >> 12);
                 if (fill_on) L += (fil[c] * If) >> 12;
                 s_lit[i][c] = (u8)(L > 255 ? 255 : L);
+                // Point lights are ADDITIVE (applied after texture modulation,
+                // like the specular term). Folding them into the multiplier
+                // instead would tint nothing: a saturated texture has no red
+                // channel for an orange lamp to scale, and the u8 clamp turns
+                // a strong lamp white. Adding light shows its true hue.
+                int P = 0;
+                for (int k = 0; k < npl; k++)
+                    P += (plcol[k][c] * pfac[k]) >> 12;
+                s_plit[i][c] = (u8)(P > 255 ? 255 : P);
             }
             if (spec_on) {
                 LVec nv;
@@ -185,6 +233,10 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
                 }
                 if (fog_on)
                     v += ((fogc[c] - v) * s_p[idx[k]]) >> 12;
+                if (lit) {
+                    v += s_plit[idx[k]][c];   // coloured lamp pools, on top of fog
+                    if (v > 255) v = 255;
+                }
                 if (lit && !(mp->flags & MPF_MATTE)) {
                     v += s_spec[idx[k]][c];   // additive wet highlight, on top of fog
                     if (v > 255) v = 255;

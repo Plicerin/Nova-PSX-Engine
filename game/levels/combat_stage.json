@@ -7,6 +7,12 @@
   "camera_start": {"position": [0, 8.5, -7.5], "rotation": [48, 0, 0]},
   "fog": {"enabled": true, "color": [18, 54, 66], "start": 9.0, "end": 34.0},
   "clear_color": [12, 34, 44],
-  "light": {"enabled": true, "ambient": [30, 50, 82], "diffuse": [172, 196, 186], "direction": [2.5, -4.0, -2.0],
-            "fill": {"enabled": true, "color": [115, 62, 30], "direction": [-2.0, 1.2, 1.0]}}
+  "light": {"enabled": true, "ambient": [20, 32, 52], "diffuse": [78, 94, 92], "direction": [2.5, -4.0, -2.0],
+            "fill": {"enabled": true, "color": [115, 62, 30], "direction": [-2.0, 1.2, 1.0]},
+            "points": [
+              {"color": [255, 140, 45],  "position": [-2.6, 1.1, 0.5], "radius": 5.0},
+              {"color": [215, 70, 225],  "position": [2.6, 1.1, 0.5],  "radius": 5.0},
+              {"color": [70, 235, 255],  "position": [0.0, 1.2, 6.2],  "radius": 7.0},
+              {"color": [50, 90, 255],   "position": [-4.6, 1.0, -2.8], "radius": 5.5}
+            ]}
 }

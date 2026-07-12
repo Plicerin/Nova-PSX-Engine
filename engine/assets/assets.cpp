@@ -593,6 +593,8 @@ static Level s_level; // one level at a time; Level_Load owns its object array
 // line contradicts its own offsets; explicit offsets are authoritative).
 static const u32 kLvlHeaderV1 = 96;
 static const u32 kLvlHeaderV2 = 108;   // v2 appends a fill light
+static const u32 kLvlHeaderV3 = 192;   // v3 appends 4 coloured point lights
+static const u32 kLvlPointSize = 20;
 static const u32 kLvlObjSize  = 64;
 
 static bool ParseLevel(const u8* buf, u32 size, const char* path) {
@@ -601,11 +603,13 @@ static bool ParseLevel(const u8* buf, u32 size, const char* path) {
         return false;
     }
     u32 version = RdU32(buf + 4);
-    if (version != 1 && version != 2) {
+    if (version < 1 || version > 3) {
         fprintf(stderr, "[assets] %s: unsupported level version %u\n", path, (unsigned)version);
         return false;
     }
-    u32 hdr_size = (version >= 2) ? kLvlHeaderV2 : kLvlHeaderV1;
+    u32 hdr_size = (version >= 3) ? kLvlHeaderV3
+                 : (version >= 2) ? kLvlHeaderV2
+                                  : kLvlHeaderV1;
     if (size < hdr_size) {
         fprintf(stderr, "[assets] %s: truncated level header\n", path);
         return false;
@@ -658,7 +662,32 @@ static bool ParseLevel(const u8* buf, u32 size, const char* path) {
         s_level.light.fdir.vy = RdI16(buf + 102);
         s_level.light.fdir.vz = RdI16(buf + 104);
     }
-    // (fill fields are already zeroed by the memset above for v1 levels)
+    if (version >= 3) {
+        u32 np = buf[108];
+        if (np > (u32)MAX_POINT_LIGHTS) {
+            fprintf(stderr, "[assets] %s: %u point lights, clamping to %d\n",
+                    path, (unsigned)np, MAX_POINT_LIGHTS);
+            np = (u32)MAX_POINT_LIGHTS;
+        }
+        s_level.light.npoints = (u8)np;
+        for (u32 i = 0; i < np; i++) {
+            const u8* p = buf + 112 + i * kLvlPointSize;
+            LevelPoint* lp = &s_level.light.points[i];
+            lp->r = p[0];
+            lp->g = p[1];
+            lp->b = p[2];
+            lp->pos.vx = RdI32(p + 4);
+            lp->pos.vy = RdI32(p + 8);
+            lp->pos.vz = RdI32(p + 12);
+            lp->radius = RdI32(p + 16);
+            if (lp->radius <= 0) {   // a zero radius lights nothing; drop it
+                fprintf(stderr, "[assets] %s: point light %u has radius 0\n",
+                        path, (unsigned)i);
+                lp->radius = 1;
+            }
+        }
+    }
+    // (fill/point fields are already zeroed by the memset above for older levels)
 
     // Normalize a light dir to length 4096 (4.12). Squares fit u32: 3*32767^2.
     auto normalize_dir = [&](SVec* d, const char* what) {

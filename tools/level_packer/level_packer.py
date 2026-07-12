@@ -75,6 +75,25 @@ def _dir_to_fx12(d):
             int(round(z * pf.FX12_ONE / length)))
 
 
+def _points(src, name):
+    """light.points: [{color:[r,g,b], position:[x,y,z], radius: metres}]."""
+    out = []
+    for i, p in enumerate(src or []):
+        col = _col3(p.get("color"))
+        out.append({
+            "r": col[0], "g": col[1], "b": col[2],
+            "pos": _pos_to_engine(p.get("position", [0.0, 0.0, 0.0]),
+                                  "light.points[%d].position" % i),
+            "radius": pf.check_i32(
+                int(round(float(p.get("radius", 1.0)) * pf.WORLD_SCALE)),
+                "light.points[%d].radius" % i),
+        })
+    if len(out) > pf.MAX_POINT_LIGHTS:
+        raise pf.PackError("level '%s': %d point lights, max %d"
+                           % (name, len(out), pf.MAX_POINT_LIGHTS))
+    return out
+
+
 def _scale_to_fx12(s):
     """Scalar or [sx,sy,sz] floats -> fx12 i32[3]."""
     if s is None:
@@ -127,6 +146,7 @@ def pack_level(json_path, out_path):
             "r": fill_col[0], "g": fill_col[1], "b": fill_col[2],
             "dir": _dir_to_fx12(fill_src.get("direction", [0.0, -1.0, 0.0])),
         },
+        "points": _points(light_src.get("points"), name),
     }
 
     clear_color = _col3(data.get("clear_color"))

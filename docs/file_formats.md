@@ -109,8 +109,15 @@ vi[3]=bottom-right (PS1 convention; runtime splits as (0,1,2) + (1,3,2)).
 | 97 | 3  | **v2** fill r,g,b u8 |
 | 100| 6  | **v2** fill dir i16[3] (4.12; loader normalizes) |
 | 106| 2  | **v2** pad |
+| 108| 1  | **v3** point light count u8 (max 4) |
+| 109| 3  | **v3** pad |
+| 112| 80 | **v3** 4 × point light, 20 bytes each |
 
-Header is 96 bytes in v1, **108 in v2**; objects start at the header size.
+Point light record (20 bytes): `r,g,b u8` + 1 pad, `pos i32[3]` (world, engine
+units), `radius i32` (engine units).
+
+Header is 96 bytes in v1, 108 in v2, **192 in v3**; objects start at the header
+size.
 
 **v2 fill light.** A second directional light with its own colour and direction,
 summed into the per-vertex term alongside the key light:
@@ -118,6 +125,24 @@ summed into the per-vertex term alongside the key light:
 two-tone coloured lighting (e.g. cool ambient + neutral key + warm fill rim)
 instead of a single wash. v1 levels still load; their fill block is zeroed, so
 `fil_en = 0` and the term drops out. Specular uses the key light only.
+
+**v3 point lights.** Positioned coloured lamps with linear distance falloff:
+`f = max(0, (radius-dist)/radius) * max(0, N·L)`. A *directional* light is
+constant across a flat surface, so it can never paint a coloured pool on a
+floor; a point light varies per vertex and does.
+
+Point lights are **additive** — applied after texture modulation, like the
+specular term — not folded into the `s_lit` multiplier. This is deliberate.
+The multiplier scales the texel, so on a saturated texture (e.g. teal water,
+which has almost no red) an orange lamp has no red channel to scale and tints
+nothing; and because `s_lit` is a `u8`, a strong lamp just clamps every channel
+to 255, i.e. white. Adding light instead of scaling it preserves the lamp's hue
+on any texture. Keep the ambient/diffuse base dim enough to leave headroom, or
+the pools wash out.
+
+Point lights are transformed into model space with the model matrix's rotation
+transpose, which assumes **unit object scale**; a scaled object would need a
+true inverse.
 
 Then nobjects × 64-byte records:
 | offset | size | field |
