@@ -580,7 +580,33 @@ def main():
                  20.0 * math.log10(peak)))
 
     verify()
-    print("all assets generated and verified OK")
+    print("all chamber assets generated and verified OK")
+    gen_game_assets()
+
+
+def gen_game_assets():
+    """Run the other procedural generators (arena, fold-creatures, crew).
+
+    /source_assets/ is gitignored, so a fresh clone has none of this art. It is
+    all procedural and these generators are committed, so regenerate it here
+    rather than making the asset build fail on a missing .obj. Assets derived
+    from third-party GLB drops are NOT regenerable and stay missing; the asset
+    build skips those with a warning.
+    """
+    import importlib
+    for mod in ("gen_arena_assets", "gen_shard_assets", "gen_prism_assets",
+                "gen_crew_assets"):
+        try:
+            m = importlib.import_module(mod)
+        except ImportError as e:
+            print("  skip %s (%s)" % (mod, e))
+            continue
+        fn = getattr(m, "main", None)
+        if fn is None:
+            print("  skip %s (no main())" % mod)
+            continue
+        print("== %s ==" % mod)
+        fn()
 
 
 def verify():

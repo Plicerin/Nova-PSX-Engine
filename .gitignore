@@ -8,9 +8,10 @@
 # tools/gen_source_assets.py; third-party assets are not committed)
 /source_assets/
 
-# Local, uncommitted asset overlay (e.g. third-party models)
+# Local, uncommitted asset overlay (e.g. third-party models). The tracked
+# tools/assets_config.json now carries the game's assets; this overlay is only
+# for entries you cannot commit.
 tools/assets_config.local.json
-game/levels/crew_room.json
 
 # Python
 __pycache__/

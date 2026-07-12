@@ -103,18 +103,27 @@ void Rc_DrawMesh(RenderContext* rc, const Mesh* mesh, const Mat* model) {
         // maths matches the normals. Assumes the object's rotation part is
         // orthonormal (level objects are authored at unit scale); a scaled
         // object would need a true inverse rather than a transpose.
-        const int npl = (int)rc->light.npoints;
+        // Reject lights that cannot reach this mesh at all: if the light's
+        // sphere misses the mesh's bounding sphere, no vertex can be lit, so
+        // drop it before paying the per-vertex sqrt. npl counts survivors.
+        int npl = 0;
         LVec plp[MAX_POINT_LIGHTS];
         i32  plrad[MAX_POINT_LIGHTS];
         int  plcol[MAX_POINT_LIGHTS][3];
-        for (int L = 0; L < npl; L++) {
+        for (u32 L = 0; L < rc->light.npoints; L++) {
             const LevelPoint* lp = &rc->light.points[L];
             LVec d = { lp->pos.vx - model->t[0],
                        lp->pos.vy - model->t[1],
                        lp->pos.vz - model->t[2] };
-            Gte_ApplyRotL(&mrot_t, &d, &plp[L]);
-            plrad[L]   = lp->radius;
-            plcol[L][0] = lp->r; plcol[L][1] = lp->g; plcol[L][2] = lp->b;
+            i64 reach = (i64)lp->radius + (i64)mesh->radius;
+            i64 c2 = (i64)d.vx * d.vx + (i64)d.vy * d.vy + (i64)d.vz * d.vz;
+            if (c2 > reach * reach) continue;          // out of reach entirely
+            Gte_ApplyRotL(&mrot_t, &d, &plp[npl]);
+            plrad[npl]    = lp->radius;
+            plcol[npl][0] = lp->r;
+            plcol[npl][1] = lp->g;
+            plcol[npl][2] = lp->b;
+            npl++;
         }
 
         for (u32 i = 0; i < mesh->nverts; i++) {

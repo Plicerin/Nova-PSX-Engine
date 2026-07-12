@@ -1,21 +1,672 @@
 {
-  "textures": [
-    {"name": "floor_tiles_01", "source": "source_assets/textures/floor_tiles_01.png", "format": "indexed_8"},
-    {"name": "wall_panel_01",  "source": "source_assets/textures/wall_panel_01.png",  "format": "indexed_8"},
-    {"name": "crate_01",       "source": "source_assets/textures/crate_01.png",       "format": "indexed_8"},
-    {"name": "gem_01",         "source": "source_assets/textures/gem_01.png",         "format": "indexed_8"},
-    {"name": "orb_glow",       "source": "source_assets/textures/orb_glow.png",       "format": "indexed_4", "transparent": true, "semitrans": true}
-  ],
-  "meshes": [
-    {"name": "room",  "source": "source_assets/models/room.obj",  "lit": true, "materials": {"floor": "floor_tiles_01", "wall": "wall_panel_01"}},
-    {"name": "crate", "source": "source_assets/models/crate.obj", "lit": true, "texture": "crate_01"},
-    {"name": "gem",   "source": "source_assets/models/gem.obj",   "lit": true, "texture": "gem_01"}
-  ],
-  "sounds": [
-    {"name": "blip",     "source": "source_assets/audio/blip.wav"},
-    {"name": "ambience", "source": "source_assets/audio/ambience_loop.wav", "music": true, "loop": true}
-  ],
-  "levels": [
-    {"name": "test_chamber", "source": "game/levels/test_chamber.json"}
-  ]
+ "textures": [
+  {
+   "name": "floor_tiles_01",
+   "source": "source_assets/textures/floor_tiles_01.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "wall_panel_01",
+   "source": "source_assets/textures/wall_panel_01.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "crate_01",
+   "source": "source_assets/textures/crate_01.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "gem_01",
+   "source": "source_assets/textures/gem_01.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "orb_glow",
+   "source": "source_assets/textures/orb_glow.png",
+   "format": "indexed_4",
+   "transparent": true,
+   "semitrans": true
+  },
+  {
+   "name": "girl_diffuse",
+   "source": "source_assets/textures/girl_diffuse.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "grid_floor",
+   "source": "source_assets/textures/grid_floor.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "arena_floor",
+   "source": "source_assets/textures/arena_floor.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "arena_wall",
+   "source": "source_assets/textures/arena_wall.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "arena_plate",
+   "source": "source_assets/textures/arena_plate.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "arena_screen",
+   "source": "source_assets/textures/arena_screen.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "arena_water",
+   "source": "source_assets/textures/arena_water.png",
+   "format": "indexed_4",
+   "semitrans": true
+  },
+  {
+   "name": "arena_water_dark",
+   "source": "source_assets/textures/arena_water_dark.png",
+   "format": "indexed_4",
+   "semitrans": true
+  },
+  {
+   "name": "arena_water_teal",
+   "source": "source_assets/textures/arena_water_teal.png",
+   "format": "indexed_4",
+   "semitrans": true
+  },
+  {
+   "name": "arena_water_clouds",
+   "source": "source_assets/textures/arena_water_clouds.png",
+   "format": "indexed_4",
+   "semitrans": true
+  },
+  {
+   "name": "arena_water_light",
+   "source": "source_assets/textures/arena_water_light.png",
+   "format": "indexed_4",
+   "semitrans": true
+  },
+  {
+   "name": "crew_helmet",
+   "source": "source_assets/textures/crew_helmet.png",
+   "format": "indexed_8"
+  },
+  {
+   "name": "psrobot_tex",
+   "source": "source_assets/textures/psrobot_tex0.png",
+   "format": "indexed_8"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "room",
+   "source": "source_assets/models/room.obj",
+   "lit": true,
+   "materials": {
+    "floor": "floor_tiles_01",
+    "wall": "wall_panel_01"
+   }
+  },
+  {
+   "name": "crate",
+   "source": "source_assets/models/crate.obj",
+   "lit": true,
+   "texture": "crate_01"
+  },
+  {
+   "name": "gem",
+   "source": "source_assets/models/gem.obj",
+   "lit": true,
+   "texture": "gem_01"
+  },
+  {
+   "name": "girl",
+   "source": "source_assets/models/girl.obj",
+   "lit": true,
+   "texture": "girl_diffuse"
+  },
+  {
+   "name": "floor",
+   "source": "source_assets/models/floor.obj",
+   "lit": true,
+   "texture": "grid_floor"
+  },
+  {
+   "name": "arena",
+   "source": "source_assets/models/arena.obj",
+   "lit": true,
+   "doublesided": true,
+   "materials": {
+    "floor": "arena_floor",
+    "wall": "arena_wall",
+    "plate": "arena_plate",
+    "screen": "arena_screen"
+   }
+  },
+  {
+   "name": "arena_water",
+   "source": "source_assets/models/arena_water.obj",
+   "lit": true,
+   "semitrans": true,
+   "semi_mode": 0,
+   "doublesided": true,
+   "sort_bias": -1,
+   "uv_scroll": true,
+   "materials": {
+    "water_swirl": "arena_water_light",
+    "water_dark": "arena_water_dark",
+    "water_teal": "arena_water_teal",
+    "water_clouds": "arena_water_clouds"
+   }
+  },
+  {
+   "name": "robot_chassis",
+   "source": "source_assets/models/robot_chassis.obj",
+   "lit": true,
+   "materials": {
+    "plate": "arena_plate",
+    "screen": "arena_screen"
+   },
+   "doublesided": true
+  },
+  {
+   "name": "robot_head",
+   "source": "source_assets/models/robot_head.obj",
+   "lit": true,
+   "materials": {
+    "plate": "arena_plate",
+    "screen": "arena_screen"
+   },
+   "doublesided": true
+  },
+  {
+   "name": "robot_arm",
+   "source": "source_assets/models/robot_arm.obj",
+   "lit": true,
+   "materials": {
+    "plate": "arena_plate",
+    "screen": "arena_screen"
+   },
+   "doublesided": true
+  },
+  {
+   "name": "shard_core",
+   "source": "source_assets/models/shard_core.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_wing1_l",
+   "source": "source_assets/models/shard_wing1_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_wing2_l",
+   "source": "source_assets/models/shard_wing2_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_wing1_r",
+   "source": "source_assets/models/shard_wing1_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_wing2_r",
+   "source": "source_assets/models/shard_wing2_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_nose",
+   "source": "source_assets/models/shard_nose.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "shard_tail",
+   "source": "source_assets/models/shard_tail.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    40,
+    40,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "crew_pelvis",
+   "source": "source_assets/models/crew_pelvis.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    118,
+    74,
+    40
+   ],
+   "matte": true
+  },
+  {
+   "name": "crew_torso",
+   "source": "source_assets/models/crew_torso.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    46,
+    88,
+    94
+   ]
+  },
+  {
+   "name": "crew_head",
+   "source": "source_assets/models/crew_head.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "crew_helmet"
+  },
+  {
+   "name": "crew_arm_up",
+   "source": "source_assets/models/crew_arm_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    46,
+    88,
+    94
+   ]
+  },
+  {
+   "name": "crew_arm_lo",
+   "source": "source_assets/models/crew_arm_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    38,
+    72,
+    78
+   ]
+  },
+  {
+   "name": "crew_leg_up",
+   "source": "source_assets/models/crew_leg_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    38,
+    72,
+    78
+   ]
+  },
+  {
+   "name": "crew_leg_lo",
+   "source": "source_assets/models/crew_leg_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    38,
+    72,
+    78
+   ]
+  },
+  {
+   "name": "psrobot",
+   "source": "source_assets/models/psrobot.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex",
+   "scale": 0.15
+  },
+  {
+   "name": "mecha_full",
+   "source": "source_assets/models/mecha_full.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    126,
+    134,
+    146
+   ]
+  },
+  {
+   "name": "astro_head",
+   "source": "source_assets/models/astro_head.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    218,
+    222,
+    230
+   ],
+   "matte": false
+  },
+  {
+   "name": "astro_torso",
+   "source": "source_assets/models/astro_torso.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_pelvis",
+   "source": "source_assets/models/astro_pelvis.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_arm_up_l",
+   "source": "source_assets/models/astro_arm_up_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_arm_up_r",
+   "source": "source_assets/models/astro_arm_up_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_arm_lo_l",
+   "source": "source_assets/models/astro_arm_lo_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    196,
+    202,
+    210
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_arm_lo_r",
+   "source": "source_assets/models/astro_arm_lo_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    196,
+    202,
+    210
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_leg_up_l",
+   "source": "source_assets/models/astro_leg_up_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_leg_up_r",
+   "source": "source_assets/models/astro_leg_up_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    212,
+    118,
+    48
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_leg_lo_l",
+   "source": "source_assets/models/astro_leg_lo_l.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    196,
+    202,
+    210
+   ],
+   "matte": true
+  },
+  {
+   "name": "astro_leg_lo_r",
+   "source": "source_assets/models/astro_leg_lo_r.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    196,
+    202,
+    210
+   ],
+   "matte": true
+  },
+  {
+   "name": "unit7_pelvis",
+   "source": "source_assets/models/unit7_pelvis.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_torso",
+   "source": "source_assets/models/unit7_torso.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_head",
+   "source": "source_assets/models/unit7_head.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_arm_l_up",
+   "source": "source_assets/models/unit7_arm_l_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_arm_l_lo",
+   "source": "source_assets/models/unit7_arm_l_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_arm_r_up",
+   "source": "source_assets/models/unit7_arm_r_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_arm_r_lo",
+   "source": "source_assets/models/unit7_arm_r_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_leg_l_up",
+   "source": "source_assets/models/unit7_leg_l_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_leg_l_lo",
+   "source": "source_assets/models/unit7_leg_l_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_leg_r_up",
+   "source": "source_assets/models/unit7_leg_r_up.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "unit7_leg_r_lo",
+   "source": "source_assets/models/unit7_leg_r_lo.obj",
+   "lit": true,
+   "doublesided": true,
+   "texture": "psrobot_tex"
+  },
+  {
+   "name": "prism_core",
+   "source": "source_assets/models/prism_core.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    46,
+    40,
+    58
+   ],
+   "matte": true
+  },
+  {
+   "name": "prism_petal",
+   "source": "source_assets/models/prism_petal.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    46,
+    40,
+    58
+   ],
+   "matte": true
+  },
+  {
+   "name": "prism_crown",
+   "source": "source_assets/models/prism_crown.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    46,
+    40,
+    58
+   ],
+   "matte": true
+  }
+ ],
+ "sounds": [
+  {
+   "name": "blip",
+   "source": "source_assets/audio/blip.wav"
+  },
+  {
+   "name": "ambience",
+   "source": "source_assets/audio/ambience_loop.wav",
+   "music": true,
+   "loop": true
+  }
+ ],
+ "levels": [
+  {
+   "name": "test_chamber",
+   "source": "game/levels/test_chamber.json"
+  },
+  {
+   "name": "crew_room",
+   "source": "game/levels/crew_room.json"
+  },
+  {
+   "name": "combat_arena",
+   "source": "game/levels/combat_arena.json"
+  },
+  {
+   "name": "combat_stage",
+   "source": "game/levels/combat_stage.json"
+  }
+ ],
+ "rigs": [
+  {
+   "name": "robot",
+   "source": "game/anims/robot.json"
+  },
+  {
+   "name": "shard",
+   "source": "game/anims/shard.json"
+  },
+  {
+   "name": "crew",
+   "source": "game/anims/crew.json"
+  },
+  {
+   "name": "astro",
+   "source": "game/anims/astro.json"
+  },
+  {
+   "name": "unit7",
+   "source": "game/anims/unit7.json"
+  },
+  {
+   "name": "prism",
+   "source": "game/anims/prism.json"
+  }
+ ]
 }
