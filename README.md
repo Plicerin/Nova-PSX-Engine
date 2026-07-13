@@ -139,3 +139,6 @@ decimation step.
 - [docs/asset_pipeline.md](docs/asset_pipeline.md) — the asset tools and how to add content
 - [docs/file_formats.md](docs/file_formats.md) — engine-native binary format contract
 - [docs/coding_standards.md](docs/coding_standards.md) — conventions for engine code
+- [ATTRIBUTION.md](ATTRIBUTION.md) — third-party art credits. The models are **not**
+  committed (`/source_assets/` is gitignored); a clone regenerates everything
+  procedural and skips the rest, so the build still succeeds without them.
