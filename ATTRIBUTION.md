@@ -24,11 +24,24 @@ by `tools/rig_split_robot.py` / `tools/rig_split_mecha.py`.
 The following have **no attribution we could establish**. Because the author
 and licence are unknown, these must not be committed to this repo or shipped:
 
-- **Water reference textures** — the source images behind `arena_water_teal`,
-  `arena_water_dark`, `arena_water_clouds` and `arena_water_light`. These are
-  the arena's water surface, so a fresh clone renders the arena without its
-  intended water look. Replacing them with procedurally generated water (or
-  art with a known licence) is the way to close that gap.
+- **Water reference textures.** Each engine texture derives from one source
+  image (matched by luminance-structure correlation):
+
+  | Engine texture | Source image | In use? |
+  |---|---|---|
+  | `arena_water_teal` | **`water.jpg`** | **yes — this is the arena's water** |
+  | `arena_water_clouds` | `water_128px.gif` | no |
+  | `arena_water_light` | `light_water.jpg` | no |
+  | `arena_water_dark` | `dark_water.jpg` | no |
+
+  The originals were dropped in from outside the repo and no author or licence
+  could be established for any of them. `water.jpg` is the one that matters:
+  it became the arena's water surface, so a fresh clone renders the arena
+  without its intended look. Closing that gap means generating the water
+  procedurally (everything else in the arena already is — see
+  `tools/gen_arena_assets.py`, which has a `tex_water()` caustics generator
+  the mesh does not currently use) or swapping in art with a known licence.
+
 - `girl` / `girl_diffuse`, `grid_floor`, `floor` — origin not established.
 
 If you know the source of any of these, add it above and remove it from this
