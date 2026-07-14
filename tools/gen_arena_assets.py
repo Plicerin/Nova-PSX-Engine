@@ -47,29 +47,45 @@ def tex_metal_floor():
 
 
 def tex_water():
-    """Seamless PS1 water caustics: interference field of 2-D sine gratings
-    (integer freqs => tiles), domain-warped, near-zero crossings lifted into
-    bright cyan ridges over deep blue. Blended 50/50 over the deck."""
+    """The arena's teal water film (`water_teal` material). Seamless, calm.
+
+    Two engine limits shape this texture, and a pretty caustics field violates
+    both:
+      * No mipmaps + nearest sampling means texture "boiling" scales with
+        texel-to-texel contrast, and this surface UV-scrolls every frame. So
+        the field is built from LOW INTEGER frequencies only (<=3): integer
+        freqs tile seamlessly, low freqs keep neighbour contrast near zero.
+      * Peak luma must stay under the bloom threshold (150) or the bloom pass
+        strobes on the moving highlights. The ramp tops out around 124.
+
+    Tuned to the statistics of the art direction we settled on: mean RGB
+    ~(40,121,100), luma ~95 (std ~13), mean neighbour |dLuma| < 1.
+    """
     W = H = 128
+    rng = np.random.default_rng(15)          # fixed: generation is deterministic
     xs = np.linspace(0, 2 * np.pi, W, endpoint=False)
     ys = np.linspace(0, 2 * np.pi, H, endpoint=False)
     X, Y = np.meshgrid(xs, ys)
-    wx = 0.55 * np.sin(2 * Y + 1.0) + 0.35 * np.sin(3 * X + 0.5)
-    wy = 0.55 * np.sin(2 * X + 2.0) + 0.35 * np.sin(3 * Y + 1.7)
+    # gentle domain warp -- integer freqs here too, so the tiling survives
+    wx = 0.45 * np.sin(Y + 0.7) + 0.25 * np.sin(2 * X + 1.9)
+    wy = 0.45 * np.sin(X + 2.2) + 0.25 * np.sin(2 * Y + 0.4)
     Xa, Ya = X + wx, Y + wy
 
-    def g(fx, fy, ph):
-        return np.sin(fx * Xa + fy * Ya + ph)
+    v = np.zeros((H, W))
+    for fx, fy in ((1, 1), (2, 1), (1, 2), (2, 2), (3, 1), (1, 3)):
+        ph = rng.uniform(0, 2 * np.pi)
+        v += np.sin(fx * Xa + fy * Ya + ph) / (fx * fx + fy * fy) ** 0.6
+    v -= v.min()
+    v /= v.max()
 
-    v = (g(2, 1, 0.0) + g(1, 2, 1.3) + g(3, 2, 2.1) + g(2, 3, 0.7)) / 4.0
-    ridge = np.clip(1.0 - np.abs(v) * 2.0, 0.0, 1.0) ** 1.6
-    base = np.array([16, 46, 70]); mid = np.array([44, 122, 160])
-    peak = np.array([180, 230, 248])
-    t = ridge[..., None]
-    col = np.where(t < 0.5, base + (mid - base) * (t / 0.5),
-                   mid + (peak - mid) * ((t - 0.5) / 0.5))
+    trough = np.array([26, 92, 76])          # deep teal
+    mid    = np.array([44, 128, 105])
+    crest  = np.array([62, 155, 128])        # stays well under bloom(150)
+    t = v[..., None]
+    col = np.where(t < 0.6, trough + (mid - trough) * (t / 0.6),
+                   mid + (crest - mid) * ((t - 0.6) / 0.4))
     Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB").save(
-        f"{TEX}/arena_water.png")
+        f"{TEX}/arena_water_teal.png")
 
 
 def tex_metal_wall():

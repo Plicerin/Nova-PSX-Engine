@@ -58,32 +58,8 @@
    "format": "indexed_8"
   },
   {
-   "name": "arena_water",
-   "source": "source_assets/textures/arena_water.png",
-   "format": "indexed_4",
-   "semitrans": true
-  },
-  {
-   "name": "arena_water_dark",
-   "source": "source_assets/textures/arena_water_dark.png",
-   "format": "indexed_4",
-   "semitrans": true
-  },
-  {
    "name": "arena_water_teal",
    "source": "source_assets/textures/arena_water_teal.png",
-   "format": "indexed_4",
-   "semitrans": true
-  },
-  {
-   "name": "arena_water_clouds",
-   "source": "source_assets/textures/arena_water_clouds.png",
-   "format": "indexed_4",
-   "semitrans": true
-  },
-  {
-   "name": "arena_water_light",
-   "source": "source_assets/textures/arena_water_light.png",
    "format": "indexed_4",
    "semitrans": true
   },
@@ -154,10 +130,7 @@
    "sort_bias": -1,
    "uv_scroll": true,
    "materials": {
-    "water_swirl": "arena_water_light",
-    "water_dark": "arena_water_dark",
-    "water_teal": "arena_water_teal",
-    "water_clouds": "arena_water_clouds"
+    "water_teal": "arena_water_teal"
    }
   },
   {

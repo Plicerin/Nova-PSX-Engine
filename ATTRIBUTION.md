@@ -24,25 +24,27 @@ by `tools/rig_split_robot.py` / `tools/rig_split_mecha.py`.
 The following have **no attribution we could establish**. Because the author
 and licence are unknown, these must not be committed to this repo or shipped:
 
-- **Water reference textures.** Each engine texture derives from one source
-  image (matched by luminance-structure correlation):
-
-  | Engine texture | Source image | In use? |
-  |---|---|---|
-  | `arena_water_teal` | **`water.jpg`** | **yes — this is the arena's water** |
-  | `arena_water_clouds` | `water_128px.gif` | no |
-  | `arena_water_light` | `light_water.jpg` | no |
-  | `arena_water_dark` | `dark_water.jpg` | no |
-
-  The originals were dropped in from outside the repo and no author or licence
-  could be established for any of them. `water.jpg` is the one that matters:
-  it became the arena's water surface, so a fresh clone renders the arena
-  without its intended look. Closing that gap means generating the water
-  procedurally (everything else in the arena already is — see
-  `tools/gen_arena_assets.py`, which has a `tex_water()` caustics generator
-  the mesh does not currently use) or swapping in art with a known licence.
-
 - `girl` / `girl_diffuse`, `grid_floor`, `floor` — origin not established.
+
+## Resolved: the arena water
+
+The arena's water used to come from an unattributed image. It no longer does —
+`tools/gen_arena_assets.py::tex_water()` generates it procedurally, so it is
+committed, reproducible, and licence-clean.
+
+For the record, the retired textures each derived from one source image
+(matched by luminance-structure correlation):
+
+| Retired texture | Source image | Was it used? |
+|---|---|---|
+| `arena_water_teal` | `water.jpg` | yes — this was the arena's water |
+| `arena_water_clouds` | `water_128px.gif` | no |
+| `arena_water_light` | `light_water.jpg` | no |
+| `arena_water_dark` | `dark_water.jpg` | no |
+
+No author or licence could be established for any of them, so none are
+committed and the three unused ones were dropped from the asset config
+entirely (they were still costing ~32 KB of VRAM).
 
 If you know the source of any of these, add it above and remove it from this
 section. If you intend to publish this project, either replace them or clear
