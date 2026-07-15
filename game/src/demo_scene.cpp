@@ -12,6 +12,7 @@
 #include "engine/debug/debug.h"
 #include "engine/anim/anim.h"
 #include "game/src/combat.h"
+#include "game/src/dialog.h"
 #include "game/src/fx.h"
 
 static Level*         s_level     = nullptr;
@@ -87,11 +88,12 @@ void Demo_Init(Level* level) {
     Fx_Init();
     // Ambient mote haze filling the play volume (aquatic-lab atmosphere).
     // The combat arena is a much larger room than the test chamber.
-    if (Combat_Active())
+    if (Combat_Active() || Dialog_Active())
         Fx_AmbientInit(LVec{ -1900, -1600, -1500 }, LVec{ 1900, -30, 2400 });
     else
         Fx_AmbientInit(LVec{ -900, -1050, -300 }, LVec{ 900, -30, 1700 });
-    if (Combat_Active()) Combat_Init();
+    if (Dialog_Active()) Dialog_Init();
+    else if (Combat_Active()) Combat_Init();
 
     s_robot_rig    = Rig_Find("robot");
     s_robot_idle   = Anim_Find("robot_idle");
@@ -121,7 +123,9 @@ void Demo_Update() {
     Fx_Update();
     Fx_AmbientUpdate();
 
-    // Combat owns all input in combat mode (no walk-camera bleed-through).
+    // The scene, then combat, own all input in their modes (no walk-camera
+    // bleed-through). Dialog is checked first: it hands off into combat.
+    if (Dialog_Active()) { Dialog_Update(); return; }
     if (Combat_Active()) { Combat_Update(); return; }
 
     if (Pad_Held(PAD_L1)) s_yaw -= kTurnRate;
@@ -200,8 +204,10 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     scene_cam.near_z = 40;                // ~16 cm
     scene_cam.far_z  = 20 * WORLD_SCALE;  // 20 m
 
-    // Status screen overrides the scene camera with its portrait framing.
-    if (Combat_InspectActive()) scene_cam = *Combat_InspectCam();
+    // The staged scene directs its own camera; the status screen overrides the
+    // scene camera with its portrait framing.
+    if (Dialog_Active())            scene_cam = *Dialog_Cam();
+    else if (Combat_InspectActive()) scene_cam = *Combat_InspectCam();
 
     // Seed the free cam while inactive so toggling starts from the current view.
     if (!Debug_FreeCamActive()) Debug_SyncFreeCam(&scene_cam);
@@ -232,7 +238,9 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Rc_DrawMesh(rc, o->mesh_ptr, &m);
     }
 
-    if (Combat_Active()) {
+    if (Dialog_Active()) {
+        Dialog_Render(rc);
+    } else if (Combat_Active()) {
         Combat_Render(rc);
     } else if (s_robot_rig) {
         Mat rm;
@@ -242,7 +250,7 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         rm.t[2] = s_robot_pos.vz;
         Anim_Draw(rc, s_robot_rig, &s_robot_anim, &rm);
     }
-    if (!Combat_Active() && s_shard_rig) {
+    if (!Combat_Active() && !Dialog_Active() && s_shard_rig) {
         Mat sm;
         Gte_RotMatrix(&s_shard_rot, &sm);
         sm.t[0] = s_shard_pos.vx;
@@ -267,6 +275,7 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
 }
 
 void Demo_DrawUI(Framebuffer* fb) {
+    if (Dialog_Active()) { Dialog_DrawUI(fb); return; }
     if (Combat_Active()) { Combat_DrawUI(fb); return; }
 
     const char* title = "PSX-AUTHENTIC ENGINE";

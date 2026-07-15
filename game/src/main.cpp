@@ -15,6 +15,7 @@
 #include "engine/renderer/render.h"
 #include "engine/debug/debug.h"
 #include "game/src/combat.h"
+#include "game/src/dialog.h"
 #include "game/src/demo_scene.h"
 
 // Framebuffer ~1.2 MB, RenderContext ~4 MB: must be static, never stack.
@@ -99,6 +100,14 @@ int main(int argc, char** argv) {
         } else if (strcmp(argv[i], "--combat-auto") == 0) {
             Combat_SetActive(true);
             Combat_SetAuto(true);
+        } else if (strcmp(argv[i], "--dialog") == 0) {
+            Dialog_SetActive(true);   // plays the scene, then hands into combat
+        } else if (strcmp(argv[i], "--dialog-auto") == 0) {
+            Dialog_SetActive(true);
+            Dialog_SetAuto(true);
+        } else if (strcmp(argv[i], "--dialog-line") == 0 && i + 1 < argc) {
+            Dialog_SetActive(true);
+            Dialog_SetHoldLine(atoi(argv[++i]));   // jump to a line and hold
         } else if (strcmp(argv[i], "--noui") == 0) {
             s_noui = true;
         } else if (strcmp(argv[i], "--wire") == 0) {
@@ -120,8 +129,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Combat defaults to the arena stage; --level (either order) still wins.
-    if (Combat_Active() && !s_level_explicit) s_level_path = kCombatLevel;
+    // Combat (and the scene that leads into it) default to the arena stage;
+    // --level still wins, in either argument order.
+    if ((Combat_Active() || Dialog_Active()) && !s_level_explicit)
+        s_level_path = kCombatLevel;
 
     Fixed_Init();
     if (!Plat_Init("PSX-Authentic Engine", win_w, win_h)) {

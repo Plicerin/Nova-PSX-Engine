@@ -109,6 +109,10 @@ void Combat_Init() {
     s_player.defend  = Anim_Find("astro_defend");
     s_player.hit     = Anim_Find("astro_hit");
     s_player.pos     = { (i32)(-2.3 * 256), 0, (i32)(0.5 * 256) };
+    // Verified on screen: astro's forward is +z and engine yaw is clockwise
+    // from above, so +x (the enemy) is yaw 1024. unit7 came from a different
+    // GLB and is authored facing -z, so its +x is 3072 -- do NOT assume the
+    // two rigs share a forward axis.
     s_player.rot     = { 0, (i16)1024, 0 };          // face +x (the enemy)
     s_player.max_hp  = s_player.hp = 80;
     s_player.charge  = 0;
@@ -119,7 +123,7 @@ void Combat_Init() {
     s_companion.rig  = Rig_Find("unit7");
     s_companion.idle = Anim_Find("unit7_idle");
     s_companion.pos  = { (i32)(-3.6 * 256), 0, (i32)(1.8 * 256) };
-    s_companion.rot  = { 0, (i16)(1024 + 200), 0 };
+    s_companion.rot  = { 0, (i16)3213, 0 };   // angled at the enemy from behind-left
     StartClip(&s_companion, s_companion.idle);
 
     // Enemy roster: pick one of the fold-creatures each battle.
@@ -143,7 +147,7 @@ void Combat_Init() {
     }
     s_enemy.defend   = nullptr;
     s_enemy.pos      = { (i32)(2.3 * 256), 0, (i32)(0.5 * 256) };
-    s_enemy.rot      = { 0, (i16)3072, 0 };          // face -x (the player)
+    s_enemy.rot      = { 0, (i16)3072, 0 };          // prism authored +z; -x is 3072
 
     StartClip(&s_player, s_player.idle);
     StartClip(&s_enemy, s_enemy.idle);
