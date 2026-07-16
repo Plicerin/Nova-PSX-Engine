@@ -595,7 +595,8 @@ def gen_game_assets():
     """
     import importlib
     for mod in ("gen_arena_assets", "gen_shard_assets", "gen_prism_assets",
-                "gen_crew_assets"):
+                "gen_crew_assets", "gen_evolver_assets", "gen_bug_assets",
+                "gen_triarchon_assets"):
         try:
             m = importlib.import_module(mod)
         except ImportError as e:

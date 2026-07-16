@@ -9,6 +9,8 @@
 // Turntable rate (PS1 angle units/tick) for a "girl" showcase object; 0 = off.
 // Call before Demo_Init.
 void Demo_SetSpin(i32 deg_per_tick);
+void Demo_SetEvolverTier(int tier);   // --evolver-tier N: showcase one tier
+void Demo_SetShowRig(const char* name); // --show-rig NAME: showcase any rig
 // Start a named animation clip on the showcase robot (test/CLI hook).
 void Demo_PlayClip(const char* name);
 void Demo_Init(Level* level);

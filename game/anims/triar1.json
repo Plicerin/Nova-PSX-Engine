@@ -1,0 +1,100 @@
+{
+ "rig": {
+  "name": "triar1",
+  "bones": [
+   {
+    "name": "body",
+    "parent": -1,
+    "mesh": "triar1",
+    "pos": [
+     0,
+     0.02,
+     0
+    ]
+   },
+   {
+    "name": "eye",
+    "parent": "body",
+    "mesh": "triar1_eye",
+    "pos": [
+     0,
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "clips": [
+  {
+   "name": "triar1_idle",
+   "loop": true,
+   "key_ms": 480,
+   "keys": [
+    {
+     "body": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     },
+     "eye": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "body": {
+      "pos": [
+       0,
+       0.03,
+       0
+      ]
+     },
+     "eye": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "body": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     },
+     "eye": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "body": {
+      "pos": [
+       0,
+       0.03,
+       0
+      ]
+     },
+     "eye": {
+      "pos": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

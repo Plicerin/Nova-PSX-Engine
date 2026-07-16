@@ -30,6 +30,7 @@ struct Fighter {
     bool            defending;
     i32             sink;      // death sink offset, engine units (grows down)
     i32             bob;       // transient "acting" hop, engine units (up)
+    i32             scale;     // fx12 draw scale (4096 = 1.0); evolving enemy grows
 };
 
 enum Phase : u8 {
@@ -80,6 +81,22 @@ static const int kEnemyAnchorX  = 214, kEnemyAnchorY  = 104;
 void Combat_SetActive(bool on) { s_active = on; }
 void Combat_SetAuto(bool on) { s_auto = on; }
 bool Combat_Active() { return s_active; }
+
+// --- evolving enemy tiers ---------------------------------------------------
+// Draw scale grows so tier 5 reads ~10x tier 1 (footprint also grows with the
+// added rings). Names track the creature's escalating menace.
+static const i32   kTierScale[6] = { 0, 4096, 6349, 9830, 14336, 20480 };
+static const char* kTierName[6]  = { "", "SLIVER", "FACET", "PRISM",
+                                     "LATTICE", "RIFT-BLOOM" };
+static int ClampTier(int t) { return t < 1 ? 1 : (t > 5 ? 5 : t); }
+int Evolver_TierForBattle(int won) { return ClampTier(1 + won); }
+i32 Evolver_TierScale(int tier) { return kTierScale[ClampTier(tier)]; }
+const char* Evolver_TierName(int tier) { return kTierName[ClampTier(tier)]; }
+const char* Evolver_RigName(int tier) {
+    static char buf[16];
+    snprintf(buf, sizeof(buf), "evolver_t%d", ClampTier(tier));
+    return buf;
+}
 
 static u32 Rnd() { s_seed = s_seed * 1103515245u + 12345u; return s_seed >> 16; }
 
@@ -426,6 +443,8 @@ static void DrawFighter(RenderContext* rc, Fighter* f) {
     if (!f->rig || f->sink >= 300) return;
     Mat m;
     Gte_RotMatrix(&f->rot, &m);
+    if (f->scale && f->scale != FX_ONE)
+        Gte_ScaleMatrix(&m, f->scale, f->scale, f->scale);
     m.t[0] = f->pos.vx;
     m.t[1] = f->pos.vy + f->sink - f->bob;   // y grows down; bob lifts up
     m.t[2] = f->pos.vz;

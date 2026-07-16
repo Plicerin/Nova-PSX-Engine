@@ -584,6 +584,74 @@
     58
    ],
    "matte": true
+  },
+  {
+   "name": "evolver_core",
+   "source": "source_assets/models/evolver_core.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    70,
+    58,
+    96
+   ]
+  },
+  {
+   "name": "evolver_petal",
+   "source": "source_assets/models/evolver_petal.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    70,
+    58,
+    96
+   ]
+  },
+  {
+   "name": "evolver_crown",
+   "source": "source_assets/models/evolver_crown.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    70,
+    58,
+    96
+   ]
+  },
+  {
+   "name": "bug_larva",
+   "source": "source_assets/models/bug_larva.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    7,
+    7,
+    9
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1",
+   "source": "source_assets/models/triar1.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_eye",
+   "source": "source_assets/models/triar1_eye.obj",
+   "lit": false,
+   "doublesided": true,
+   "color": [
+    210,
+    20,
+    24
+   ]
   }
  ],
  "sounds": [
@@ -640,6 +708,34 @@
   {
    "name": "prism",
    "source": "game/anims/prism.json"
+  },
+  {
+   "name": "evolver_t1",
+   "source": "game/anims/evolver_t1.json"
+  },
+  {
+   "name": "evolver_t2",
+   "source": "game/anims/evolver_t2.json"
+  },
+  {
+   "name": "evolver_t3",
+   "source": "game/anims/evolver_t3.json"
+  },
+  {
+   "name": "evolver_t4",
+   "source": "game/anims/evolver_t4.json"
+  },
+  {
+   "name": "evolver_t5",
+   "source": "game/anims/evolver_t5.json"
+  },
+  {
+   "name": "bug_larva",
+   "source": "game/anims/bug_larva.json"
+  },
+  {
+   "name": "triar1",
+   "source": "game/anims/triar1.json"
   }
  ]
 }

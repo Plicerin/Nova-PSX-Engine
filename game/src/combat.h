@@ -10,6 +10,13 @@ void Combat_SetActive(bool on);   // set from --combat before Demo_Init
 void Combat_SetAuto(bool on);     // test hook: auto-attack every turn
 bool Combat_Active();
 
+// Evolving enemy: one species, five tiers that gain rings of petals and grow
+// in size as the game progresses. Scale is fixed-point 4.12 (4096 = 1.0).
+int         Evolver_TierForBattle(int battles_won);   // -> tier 1..5
+i32         Evolver_TierScale(int tier);              // fx12 draw scale
+const char* Evolver_TierName(int tier);
+const char* Evolver_RigName(int tier);                // "evolver_t<n>"
+
 void Combat_Init();               // resolve rigs/clips, reset the battle
 void Combat_Update();             // one fixed 60 Hz tick (input+logic+anims)
 void Combat_Render(RenderContext* rc);

@@ -38,6 +38,22 @@ static const AnimClip* s_robot_defend = nullptr;
 static LVec            s_robot_pos = { (i32)(1.8 * 256), 0, (i32)(-2.5 * 256) };
 static SVec            s_robot_rot = { 0, (i16)(2048 + 300), 0 }; // face camera-ish
 
+// Evolver tier showcase (--evolver-tier N): one tier idling in the arena at
+// its real draw scale, slowly turning, to inspect shape + size.
+static int             s_ev_tier = 0;
+static const Rig*      s_ev_rig  = nullptr;
+static AnimState       s_ev_anim;
+void Demo_SetEvolverTier(int t) { s_ev_tier = t; }
+
+// Generic creature viewer (--show-rig NAME): idles any rig at true scale
+// (fixed-size triangles => no scaling), slowly turning, framed close.
+static char            s_show_rig[40] = { 0 };
+static const Rig*      s_show_r = nullptr;
+static AnimState       s_show_anim;
+void Demo_SetShowRig(const char* n) {
+    strncpy(s_show_rig, n, sizeof(s_show_rig) - 1);
+}
+
 // Shard fold-creature showcase (triangle enemy prototype).
 static const Rig*      s_shard_rig = nullptr;
 static AnimState       s_shard_anim;
@@ -87,11 +103,27 @@ void Demo_Init(Level* level) {
 
     Fx_Init();
     // Ambient mote haze filling the play volume (aquatic-lab atmosphere).
-    // The combat arena is a much larger room than the test chamber.
-    if (Combat_Active() || Dialog_Active())
+    // The combat arena is a much larger room than the test chamber. The
+    // creature viewer wants a clean empty background, so no motes there.
+    if (s_show_rig[0])
+        Fx_AmbientClear();
+    else if (Combat_Active() || Dialog_Active())
         Fx_AmbientInit(LVec{ -1900, -1600, -1500 }, LVec{ 1900, -30, 2400 });
     else
         Fx_AmbientInit(LVec{ -900, -1050, -300 }, LVec{ 900, -30, 1700 });
+    if (s_ev_tier) {
+        s_ev_rig = Rig_Find(Evolver_RigName(s_ev_tier));
+        char cn[24];
+        snprintf(cn, sizeof(cn), "evolver_t%d_idle", s_ev_tier);
+        Anim_Start(&s_ev_anim, Anim_Find(cn));
+    }
+    if (s_show_rig[0]) {
+        s_show_r = Rig_Find(s_show_rig);
+        char cn[48];
+        snprintf(cn, sizeof(cn), "%s_idle", s_show_rig);
+        Anim_Start(&s_show_anim, Anim_Find(cn));
+        if (!s_show_r) fprintf(stderr, "demo: --show-rig '%s' not found\n", s_show_rig);
+    }
     if (Dialog_Active()) Dialog_Init();
     else if (Combat_Active()) Combat_Init();
 
@@ -125,6 +157,8 @@ void Demo_Update() {
 
     // The scene, then combat, own all input in their modes (no walk-camera
     // bleed-through). Dialog is checked first: it hands off into combat.
+    if (s_ev_tier) { s_tick++; Anim_Update(&s_ev_anim, 16); return; }
+    if (s_show_rig[0]) { s_tick++; Anim_Update(&s_show_anim, 16); return; }
     if (Dialog_Active()) { Dialog_Update(); return; }
     if (Combat_Active()) { Combat_Update(); return; }
 
@@ -208,6 +242,19 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     // scene camera with its portrait framing.
     if (Dialog_Active())            scene_cam = *Dialog_Cam();
     else if (Combat_InspectActive()) scene_cam = *Combat_InspectCam();
+    else if (s_ev_tier) {
+        // Pull back far enough that the biggest tier fits; smaller tiers then
+        // read at their true relative size.
+        scene_cam.pos = { 0, (i32)(-5.5 * 256), (i32)(-16.0 * 256) };
+        scene_cam.rot = { (i16)-360, 0, 0 };       // look down ~32 deg
+        scene_cam.near_z = 40;
+        scene_cam.far_z = 40 * WORLD_SCALE;
+    } else if (s_show_rig[0]) {
+        scene_cam.pos = { 0, (i32)(-1.05 * 256), (i32)(-2.7 * 256) };
+        scene_cam.rot = { (i16)-150, 0, 0 };       // slight down-tilt, close
+        scene_cam.near_z = 40;
+        scene_cam.far_z = 20 * WORLD_SCALE;
+    }
 
     // Seed the free cam while inactive so toggling starts from the current view.
     if (!Debug_FreeCamActive()) Debug_SyncFreeCam(&scene_cam);
@@ -226,7 +273,8 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     Fb_Clear(fb, s_level->clear_r, s_level->clear_g, s_level->clear_b);
     if (g_config.zbuffer) Fb_ClearZ();
 
-    for (u32 i = 0; i < s_level->nobjects; i++) {
+    // Creature viewer: hide the arena so the wireframe/silhouette is clean.
+    for (u32 i = 0; i < s_level->nobjects && !s_show_rig[0]; i++) {
         LevelObject* o = &s_level->objects[i];
         if (!o->mesh_ptr) continue;
         Mat m;
@@ -238,7 +286,26 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Rc_DrawMesh(rc, o->mesh_ptr, &m);
     }
 
-    if (Dialog_Active()) {
+    if (s_ev_tier && s_ev_rig) {
+        Mat m;
+        SVec rot = { 0, (i16)((s_tick * 9) & (ANGLE_FULL - 1)), 0 }; // slow spin
+        Gte_RotMatrix(&rot, &m);
+        i32 sc = Evolver_TierScale(s_ev_tier);
+        Gte_ScaleMatrix(&m, sc, sc, sc);
+        m.t[0] = 0;
+        m.t[1] = (i32)(1.6 * 256);      // drop the hover so it rests in frame
+        m.t[2] = (i32)(1.5 * 256);
+        Anim_Draw(rc, s_ev_rig, &s_ev_anim, &m);
+    } else if (s_show_rig[0] && s_show_r) {
+        Mat m;
+        // Frozen 3/4 view (was a turntable); use TAB freecam to orbit.
+        SVec rot = { 0, (i16)512, 0 };
+        Gte_RotMatrix(&rot, &m);
+        m.t[0] = 0;
+        m.t[1] = 0;
+        m.t[2] = (i32)(0.2 * 256);
+        Anim_Draw(rc, s_show_r, &s_show_anim, &m);
+    } else if (Dialog_Active()) {
         Dialog_Render(rc);
     } else if (Combat_Active()) {
         Combat_Render(rc);

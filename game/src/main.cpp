@@ -87,6 +87,14 @@ int main(int argc, char** argv) {
             s_fov = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--spin") == 0 && i + 1 < argc) {
             s_spin = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--evolver-tier") == 0 && i + 1 < argc) {
+            Demo_SetEvolverTier(atoi(argv[++i]));   // showcase evolver tier N
+            if (!s_level_explicit)
+                s_level_path = "build/assets/levels/combat_stage.lvlbin";
+        } else if (strcmp(argv[i], "--show-rig") == 0 && i + 1 < argc) {
+            Demo_SetShowRig(argv[++i]);             // showcase any rig by name
+            if (!s_level_explicit)
+                s_level_path = "build/assets/levels/combat_stage.lvlbin";
         } else if (strcmp(argv[i], "--freecam-at") == 0 && i + 1 < argc) {
             s_freecam_at = (i64)strtoll(argv[++i], nullptr, 10);
         } else if (strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {
