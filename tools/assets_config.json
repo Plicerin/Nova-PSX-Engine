@@ -631,8 +631,19 @@
    "matte": true
   },
   {
-   "name": "triar1",
-   "source": "source_assets/models/triar1.obj",
+   "name": "triar1_eye",
+   "source": "source_assets/models/triar1_eye.obj",
+   "lit": false,
+   "doublesided": true,
+   "color": [
+    255,
+    28,
+    28
+   ]
+  },
+  {
+   "name": "triar1_thorax",
+   "source": "source_assets/models/triar1_thorax.obj",
    "lit": true,
    "doublesided": true,
    "color": [
@@ -643,15 +654,160 @@
    "matte": true
   },
   {
-   "name": "triar1_eye",
-   "source": "source_assets/models/triar1_eye.obj",
-   "lit": false,
+   "name": "triar1_head",
+   "source": "source_assets/models/triar1_head.obj",
+   "lit": true,
    "doublesided": true,
    "color": [
-    210,
-    20,
-    24
-   ]
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh0",
+   "source": "source_assets/models/triar1_thigh0.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh1",
+   "source": "source_assets/models/triar1_thigh1.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh2",
+   "source": "source_assets/models/triar1_thigh2.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh3",
+   "source": "source_assets/models/triar1_thigh3.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh4",
+   "source": "source_assets/models/triar1_thigh4.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_thigh5",
+   "source": "source_assets/models/triar1_thigh5.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin0",
+   "source": "source_assets/models/triar1_shin0.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin1",
+   "source": "source_assets/models/triar1_shin1.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin2",
+   "source": "source_assets/models/triar1_shin2.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin3",
+   "source": "source_assets/models/triar1_shin3.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin4",
+   "source": "source_assets/models/triar1_shin4.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triar1_shin5",
+   "source": "source_assets/models/triar1_shin5.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
   }
  ],
  "sounds": [

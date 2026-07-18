@@ -120,8 +120,13 @@ void Demo_Init(Level* level) {
     if (s_show_rig[0]) {
         s_show_r = Rig_Find(s_show_rig);
         char cn[48];
-        snprintf(cn, sizeof(cn), "%s_idle", s_show_rig);
-        Anim_Start(&s_show_anim, Anim_Find(cn));
+        // Prefer the walk clip in the viewer (motion is more useful to inspect
+        // than idle); fall back to idle for creatures without one.
+        snprintf(cn, sizeof(cn), "%s_walk", s_show_rig);
+        const AnimClip* clip = Anim_Find(cn);
+        if (!clip) { snprintf(cn, sizeof(cn), "%s_idle", s_show_rig);
+                     clip = Anim_Find(cn); }
+        Anim_Start(&s_show_anim, clip);
         if (!s_show_r) fprintf(stderr, "demo: --show-rig '%s' not found\n", s_show_rig);
     }
     if (Dialog_Active()) Dialog_Init();
@@ -250,9 +255,9 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         scene_cam.near_z = 40;
         scene_cam.far_z = 40 * WORLD_SCALE;
     } else if (s_show_rig[0]) {
-        scene_cam.pos = { 0, (i32)(-1.05 * 256), (i32)(-2.7 * 256) };
-        scene_cam.rot = { (i16)-150, 0, 0 };       // slight down-tilt, close
-        scene_cam.near_z = 40;
+        scene_cam.pos = { 0, (i32)(-0.72 * 256), (i32)(-1.65 * 256) };
+        scene_cam.rot = { (i16)-235, 0, 0 };       // closer, more down-tilt
+        scene_cam.near_z = 20;
         scene_cam.far_z = 20 * WORLD_SCALE;
     }
 
@@ -298,12 +303,25 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Anim_Draw(rc, s_ev_rig, &s_ev_anim, &m);
     } else if (s_show_rig[0] && s_show_r) {
         Mat m;
-        // Frozen 3/4 view (was a turntable); use TAB freecam to orbit.
-        SVec rot = { 0, (i16)512, 0 };
+        // Frozen 3/4 view facing the camera (head toward us); TAB to orbit.
+        SVec rot = { 0, (i16)1900, 0 };
         Gte_RotMatrix(&rot, &m);
         m.t[0] = 0;
         m.t[1] = 0;
         m.t[2] = (i32)(0.2 * 256);
+        // Clean viewer lighting: drop the arena's coloured point lights (they
+        // muddy the black facets around the eye). A single red point light AT
+        // the eye, set BEFORE drawing, reddens the head geometrically.
+        LVec eyep;
+        if (Anim_BoneWorld(s_show_r, &s_show_anim, &m, "eye", &eyep)) {
+            rc->light.npoints = 1;
+            LevelPoint* p = &rc->light.points[0];
+            p->r = 255; p->g = 30; p->b = 22;
+            p->pos = eyep;
+            p->radius = (i32)(0.75 * 256);
+        } else {
+            rc->light.npoints = 0;
+        }
         Anim_Draw(rc, s_show_r, &s_show_anim, &m);
     } else if (Dialog_Active()) {
         Dialog_Render(rc);

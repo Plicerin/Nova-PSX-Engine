@@ -103,3 +103,67 @@ void Anim_Draw(RenderContext* rc, const Rig* rig, const AnimState* st,
         if (b->mesh) Rc_DrawMesh(rc, b->mesh, &world[i]);
     }
 }
+
+// Pose evaluation shared by Anim_Draw/Anim_BoneWorld: fills world[] for every
+// bone. Returns the blend keys via out-params; caller need not use them.
+static void EvalWorld(const Rig* rig, const AnimState* st, const Mat* model,
+                      Mat world[32]) {
+    const AnimClip* c = st ? st->clip : nullptr;
+    u32 kA = 0, kB = 0;
+    fx12 t = 0;
+    if (c && c->nkeys > 1) {
+        u32 idx = (u32)(st->time_ms / c->key_ms);
+        u32 last = (u32)c->nkeys - 1;
+        if (c->loop) { kA = idx % c->nkeys; kB = (kA + 1) % c->nkeys; }
+        else { kA = idx > last ? last : idx; kB = kA < last ? kA + 1 : last; }
+        t = (fx12)(((i32)(st->time_ms - (i32)idx * c->key_ms) << FX_SHIFT)
+                   / c->key_ms);
+        if (t < 0) t = 0;
+        if (t > FX_ONE) t = FX_ONE;
+    }
+    for (u32 i = 0; i < rig->nbones; i++) {
+        const RigBone* b = &rig->bones[i];
+        SVec rot = { 0, 0, 0 };
+        LVec off = { b->bind_pos.vx, b->bind_pos.vy, b->bind_pos.vz };
+        if (c) {
+            const AnimKey* a = &c->keys[kA * c->nbones + i];
+            const AnimKey* d = &c->keys[kB * c->nbones + i];
+            rot.vx = LerpAngle(a->rot.vx, d->rot.vx, t);
+            rot.vy = LerpAngle(a->rot.vy, d->rot.vy, t);
+            rot.vz = LerpAngle(a->rot.vz, d->rot.vz, t);
+            off.vx += LerpI16(a->pos.vx, d->pos.vx, t);
+            off.vy += LerpI16(a->pos.vy, d->pos.vy, t);
+            off.vz += LerpI16(a->pos.vz, d->pos.vz, t);
+        }
+        Mat local;
+        Gte_RotMatrix(&rot, &local);
+        if (b->bind_rot.vx | b->bind_rot.vy | b->bind_rot.vz) {
+            Mat rb, rbt, tmp;
+            Gte_RotMatrix(&b->bind_rot, &rb);
+            Gte_TransposeRot(&rb, &rbt);
+            Gte_CompMatrix(&local, &rbt, &tmp);
+            Gte_CompMatrix(&rb, &tmp, &local);
+        }
+        local.t[0] = off.vx;
+        local.t[1] = off.vy;
+        local.t[2] = off.vz;
+        const Mat* parent = (b->parent < 0) ? model : &world[b->parent];
+        Gte_CompMatrix(parent, &local, &world[i]);
+    }
+}
+
+bool Anim_BoneWorld(const Rig* rig, const AnimState* st, const Mat* model,
+                    const char* bone, LVec* out) {
+    if (!rig || !model || !bone || !out || rig->nbones > 32) return false;
+    Mat world[32];
+    EvalWorld(rig, st, model, world);
+    for (u32 i = 0; i < rig->nbones; i++) {
+        if (strncmp(rig->bones[i].name, bone, sizeof(rig->bones[i].name)) != 0)
+            continue;
+        out->vx = world[i].t[0];
+        out->vy = world[i].t[1];
+        out->vz = world[i].t[2];
+        return true;
+    }
+    return false;
+}

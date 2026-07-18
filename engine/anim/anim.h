@@ -26,3 +26,8 @@ void Anim_Update(AnimState* st, i32 dt_ms);
 // `model` is the object's model-to-world matrix (rotation 4.12 + translation).
 void Anim_Draw(RenderContext* rc, const Rig* rig, const AnimState* st,
                const Mat* model);
+
+// World-space position of a named bone in the current pose (for attaching FX
+// to a bone, e.g. a glow on the eye). Returns false if the bone is not found.
+bool Anim_BoneWorld(const Rig* rig, const AnimState* st, const Mat* model,
+                    const char* bone, LVec* out);
