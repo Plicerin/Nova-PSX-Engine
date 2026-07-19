@@ -60,7 +60,9 @@ enum { MORPH_FRAMES = 14 };
 static bool         s_morph_on = false;
 static int          s_morph_hold = -1;     // test hook: freeze on one frame
 static const Mesh*  s_morph[MORPH_FRAMES];
+static bool         s_combatcam = false;   // view the creature in the arena, combat cam
 void Demo_SetShowMorph(bool on) { s_morph_on = on; }
+void Demo_SetCombatCam(bool on) { s_combatcam = on; }
 void Demo_SetMorphFrame(int f) { s_morph_hold = f; }
 static int MorphFrame() {
     if (s_morph_hold >= 0)
@@ -285,12 +287,12 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         scene_cam.rot = { (i16)-360, 0, 0 };       // look down ~32 deg
         scene_cam.near_z = 40;
         scene_cam.far_z = 40 * WORLD_SCALE;
-    } else if (s_morph_on) {
+    } else if (s_morph_on && !s_combatcam) {
         scene_cam.pos = { 0, (i32)(-2.0 * 256), (i32)(-4.2 * 256) };
         scene_cam.rot = { (i16)-360, 0, 0 };       // back far enough for the snake
         scene_cam.near_z = 20;
         scene_cam.far_z = 28 * WORLD_SCALE;
-    } else if (s_show_rig[0]) {
+    } else if (s_show_rig[0] && !s_combatcam) {
         scene_cam.pos = { 0, (i32)(-1.7 * 256), (i32)(-2.9 * 256) };
         scene_cam.rot = { (i16)-430, 0, 0 };       // back + high, ~38 deg down
         scene_cam.near_z = 20;
@@ -314,8 +316,10 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     Fb_Clear(fb, s_level->clear_r, s_level->clear_g, s_level->clear_b);
     if (g_config.zbuffer) Fb_ClearZ();
 
-    // Creature viewer: hide the arena so the wireframe/silhouette is clean.
-    for (u32 i = 0; i < s_level->nobjects && !s_show_rig[0] && !s_morph_on; i++) {
+    // Creature viewer: hide the arena so the wireframe/silhouette is clean --
+    // unless --combat-cam, which shows the creature in the arena.
+    bool hide_arena = (s_show_rig[0] || s_morph_on) && !s_combatcam;
+    for (u32 i = 0; i < s_level->nobjects && !hide_arena; i++) {
         LevelObject* o = &s_level->objects[i];
         if (!o->mesh_ptr) continue;
         Mat m;
@@ -330,13 +334,18 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     if (s_morph_on) {
         const Mesh* fm = s_morph[MorphFrame()];
         if (fm) {
-            rc->light.npoints = 0;            // clean black (no arena colour bleed)
             Mat m;
             SVec rot = { 0, (i16)1024, 0 };   // broadside: see the S-wave/legs
             Gte_RotMatrix(&rot, &m);
             m.t[0] = 0;
-            m.t[1] = 0;
-            m.t[2] = (i32)(0.3 * 256);
+            if (s_combatcam) {                // in the arena, under the combat cam
+                m.t[1] = 0;
+                m.t[2] = (i32)(0.5 * 256);
+            } else {
+                rc->light.npoints = 0;        // void viewer: clean black
+                m.t[1] = 0;
+                m.t[2] = (i32)(0.3 * 256);
+            }
             Rc_DrawMesh(rc, fm, &m);
         }
     } else if (s_ev_tier && s_ev_rig) {

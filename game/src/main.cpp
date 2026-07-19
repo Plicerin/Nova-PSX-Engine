@@ -104,6 +104,8 @@ int main(int argc, char** argv) {
             Demo_SetMorphFrame(atoi(argv[++i]));    // hold one morph frame
             if (!s_level_explicit)
                 s_level_path = "build/assets/levels/combat_stage.lvlbin";
+        } else if (strcmp(argv[i], "--combat-cam") == 0) {
+            Demo_SetCombatCam(true);                // view in arena, combat 3/4 cam
         } else if (strcmp(argv[i], "--freecam-at") == 0 && i + 1 < argc) {
             s_freecam_at = (i64)strtoll(argv[++i], nullptr, 10);
         } else if (strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {

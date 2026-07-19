@@ -143,28 +143,18 @@ void Combat_Init() {
     s_companion.rot  = { 0, (i16)3213, 0 };   // angled at the enemy from behind-left
     StartClip(&s_companion, s_companion.idle);
 
-    // Enemy roster: pick one of the fold-creatures each battle.
-    static u32 s_roster = 1;   // first battle shows PRISM, then alternates
-    s_roster++;
+    // Enemy: the TRIARCHON fodder crawler (black triangle predator).
     s_enemy = {};
-    if (s_roster & 1) {
-        s_enemy.name   = "SHARD";
-        s_enemy.rig    = Rig_Find("shard");
-        s_enemy.idle   = Anim_Find("shard_idle");
-        s_enemy.attack = Anim_Find("shard_attack");
-        s_enemy.hit    = Anim_Find("shard_hit");
-        s_enemy.max_hp = s_enemy.hp = 70;
-    } else {
-        s_enemy.name   = "PRISM";
-        s_enemy.rig    = Rig_Find("prism");
-        s_enemy.idle   = Anim_Find("prism_idle");
-        s_enemy.attack = Anim_Find("prism_attack");
-        s_enemy.hit    = Anim_Find("prism_hit");
-        s_enemy.max_hp = s_enemy.hp = 64;
-    }
+    s_enemy.name   = "TRIARCHON";
+    s_enemy.rig    = Rig_Find("triar1");
+    s_enemy.idle   = Anim_Find("triar1_idle");
+    s_enemy.attack = Anim_Find("triar1_attack");
+    s_enemy.hit    = Anim_Find("triar1_hit");
+    s_enemy.max_hp = s_enemy.hp = 72;
+    s_enemy.scale  = (i32)(1.5 * FX_ONE);            // ~1.6 m; reads at the combat cam
     s_enemy.defend   = nullptr;
     s_enemy.pos      = { (i32)(2.3 * 256), 0, (i32)(0.5 * 256) };
-    s_enemy.rot      = { 0, (i16)3072, 0 };          // prism authored +z; -x is 3072
+    s_enemy.rot      = { 0, (i16)3072, 0 };          // crawler faces +z; -x (player) is 3072
 
     StartClip(&s_player, s_player.idle);
     StartClip(&s_enemy, s_enemy.idle);
@@ -448,6 +438,17 @@ static void DrawFighter(RenderContext* rc, Fighter* f) {
     m.t[0] = f->pos.vx;
     m.t[1] = f->pos.vy + f->sink - f->bob;   // y grows down; bob lifts up
     m.t[2] = f->pos.vz;
+    // Red eye glow: a point light at the 'eye' bone reddens the creature's
+    // black facets (set before drawing so it lights the geometry). Only fires
+    // for rigs that have an eye bone (the TRIARCHON).
+    LVec eyep;
+    if (Anim_BoneWorld(f->rig, &f->anim, &m, "eye", &eyep)
+        && rc->light.npoints < (u8)MAX_POINT_LIGHTS) {
+        LevelPoint* p = &rc->light.points[rc->light.npoints++];
+        p->r = 255; p->g = 26; p->b = 20;
+        p->pos = eyep;
+        p->radius = (i32)(1.6 * 256);
+    }
     Anim_Draw(rc, f->rig, &f->anim, &m);
 }
 

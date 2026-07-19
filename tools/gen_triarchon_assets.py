@@ -204,6 +204,39 @@ def slither_clip(name):
     return {"name": "%s_walk" % name, "loop": True, "key_ms": 90, "keys": keys}
 
 
+def crawler_attack():
+    """A lunge: coil back (front legs rear), spring forward, recover."""
+    seq = [   # thorax pos,        lift, swing, shin, front-leg extra lift
+        ([0, 0.00, 0.00],  4,   0, -8,  0),
+        ([0, 0.05, -0.09], 8, -12, -16, 32),   # coil, front pair rears
+        ([0, -0.02, 0.42], 2,  26, -4,  10),   # lunge forward (+z = toward foe)
+        ([0, 0.01, 0.22],  6,   8, -12, 0),
+        ([0, 0.00, 0.00],  4,   0, -8,  0),
+    ]
+    keys = []
+    for tp, lift, swing, shin, fx in seq:
+        fr = {"thorax": {"pos": [round(v, 3) for v in tp]}}
+        for i in range(6):
+            fr["thigh%d" % i] = {"rot": [lift + (fx if i < 2 else 0), swing, 0]}
+            fr["shin%d" % i] = {"rot": [shin, 0, 0]}
+        keys.append(fr)
+    return {"name": "triar1_attack", "loop": False, "key_ms": 95, "keys": keys}
+
+
+def crawler_hit():
+    """Recoil: jerk back and down, legs splay."""
+    seq = [([0, 0, 0], 4, -8), ([0, -0.05, -0.16], 28, -2),
+           ([0, -0.02, -0.06], 14, -8), ([0, 0, 0], 4, -8)]
+    keys = []
+    for tp, lift, shin in seq:
+        fr = {"thorax": {"pos": [round(v, 3) for v in tp]}}
+        for i in range(6):
+            fr["thigh%d" % i] = {"rot": [lift, (18 if i % 2 else -18), 0]}
+            fr["shin%d" % i] = {"rot": [shin, 0, 0]}
+        keys.append(fr)
+    return {"name": "triar1_hit", "loop": False, "key_ms": 85, "keys": keys}
+
+
 def write_creature(name, bones, meshes, eye_rel, clips):
     for mn, tb in meshes.items():
         save_cluster(tb, os.path.join(MOD, mn + ".obj"), "body")
@@ -224,7 +257,8 @@ def main():
     os.makedirs(MOD, exist_ok=True)
     os.makedirs(ANIM, exist_ok=True)
     bones, meshes, eye_rel = build_rigged()
-    write_creature("triar1", bones, meshes, eye_rel, [idle_clip(), walk_clip()])
+    write_creature("triar1", bones, meshes, eye_rel,
+                   [idle_clip(), walk_clip(), crawler_attack(), crawler_hit()])
     sb, sm, se = build_snake("triarsnake")
     write_creature("triarsnake", sb, sm, se, [slither_clip("triarsnake")])
 
