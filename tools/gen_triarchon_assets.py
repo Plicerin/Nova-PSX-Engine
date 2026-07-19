@@ -154,30 +154,79 @@ def idle_clip():
     return {"name": "triar1_idle", "loop": True, "key_ms": 460, "keys": keys}
 
 
+# --------------------------------------------------------- serpent form
+SNAKE_SEGS = 9
+
+
+def build_snake(name):
+    """A serpent: a chain of tube segments (each a bone hinged to the previous)
+    that undulates via a travelling wave. Head + red eye at the front. Same
+    fixed-triangle clusters as the crawler, arranged as a spine instead of a
+    body+legs -- this is how the species can read as a snake."""
+    bones, meshes = [], {}
+    seglen = E * math.sqrt(2.0 / 3.0) * 2      # a 2-band tube's length
+    for s in range(SNAKE_SEGS):
+        seg, _ = tube_cluster((0, 0, -1), 2, s * 24)   # extend -z (behind head)
+        meshes["%s_seg%d" % (name, s)] = seg
+        if s == 0:
+            bones.append({"name": "seg0", "parent": -1, "mesh": "%s_seg0" % name,
+                          "pos": [0, BODY_Y, 0], "rot": [0, 0, 0]})
+        else:
+            bones.append({"name": "seg%d" % s, "parent": "seg%d" % (s - 1),
+                          "mesh": "%s_seg%d" % (name, s),
+                          "pos": [0, 0, round(-seglen, 4)], "rot": [0, 0, 0]})
+    # head at the front (+z) of seg0
+    hc, eye_face = head_cluster()
+    meshes["%s_head" % name] = hc
+    head_piv = (0.0, 0.03, 0.14)
+    bones.append({"name": "head", "parent": "seg0", "mesh": "%s_head" % name,
+                  "pos": [round(c, 4) for c in head_piv], "rot": [0, 0, 0]})
+    eyeC = _mul(_add(_add(eye_face[0], eye_face[1]), eye_face[2]), 1.0 / 3)
+    eye_rel = [_sub(v, eyeC) for v in eye_face]
+    bones.append({"name": "eye", "parent": "head", "mesh": "%s_eye" % name,
+                  "pos": [round(c, 4) for c in eyeC], "rot": [0, 0, 0]})
+    return bones, meshes, eye_rel
+
+
+def slither_clip(name):
+    """Horizontal S-wave travelling head->tail (key ry bends each segment about
+    the vertical). Amplitude grows toward the tail for a whip."""
+    K = 8
+    keys = []
+    for k in range(K):
+        p = k / float(K)
+        fr = {}
+        for s in range(SNAKE_SEGS):
+            amp = 7.0 + s * 1.6
+            ry = amp * math.sin(2 * math.pi * p - s * 0.9)
+            fr["seg%d" % s] = {"rot": [0, round(ry, 1), 0]}
+        keys.append(fr)
+    return {"name": "%s_walk" % name, "loop": True, "key_ms": 90, "keys": keys}
+
+
+def write_creature(name, bones, meshes, eye_rel, clips):
+    for mn, tb in meshes.items():
+        save_cluster(tb, os.path.join(MOD, mn + ".obj"), "body")
+    eye = ("mtllib triar.mtl\nusemtl eye\n"
+           + "".join("v %.4f %.4f %.4f\n" % v for v in eye_rel))
+    n = _norm(_cross(_sub(eye_rel[1], eye_rel[0]), _sub(eye_rel[2], eye_rel[0])))
+    eye += "vn %.4f %.4f %.4f\nf 1//1 2//1 3//1\n" % n
+    with open(os.path.join(MOD, name + "_eye.obj"), "w") as f:
+        f.write(eye)
+    rig = {"rig": {"name": name, "bones": bones}, "clips": clips}
+    with open(os.path.join(ANIM, name + ".json"), "w", encoding="utf-8") as f:
+        json.dump(rig, f, indent=1)
+    print("%s: %d bones, %d meshes" % (name, len(bones), len(meshes) + 1))
+    print("MESHES:", ",".join(sorted(meshes.keys())))
+
+
 def main():
     os.makedirs(MOD, exist_ok=True)
     os.makedirs(ANIM, exist_ok=True)
     bones, meshes, eye_rel = build_rigged()
-
-    for name, tb in meshes.items():
-        save_cluster(tb, os.path.join(MOD, name + ".obj"), "body")
-    eye_obj = ("mtllib triar.mtl\nusemtl eye\n"
-               + "".join("v %.4f %.4f %.4f\n" % v for v in eye_rel))
-    n = _norm(_cross(_sub(eye_rel[1], eye_rel[0]), _sub(eye_rel[2], eye_rel[0])))
-    eye_obj += "vn %.4f %.4f %.4f\nf 1//1 2//1 3//1\n" % n
-    with open(os.path.join(MOD, "triar1_eye.obj"), "w") as f:
-        f.write(eye_obj)
-
-    rig = {"rig": {"name": "triar1", "bones": bones},
-           "clips": [idle_clip(), walk_clip()]}
-    with open(os.path.join(ANIM, "triar1.json"), "w", encoding="utf-8") as f:
-        json.dump(rig, f, indent=1)
-
-    ntri = sum(t.count() for t in meshes.values()) + 1
-    print("triar1 rigged: %d bones, %d meshes, %d triangles"
-          % (len(bones), len(meshes) + 1, ntri))
-    # print mesh names for registration
-    print("MESHES:", ",".join(sorted(meshes.keys())))
+    write_creature("triar1", bones, meshes, eye_rel, [idle_clip(), walk_clip()])
+    sb, sm, se = build_snake("triarsnake")
+    write_creature("triarsnake", sb, sm, se, [slither_clip("triarsnake")])
 
 
 if __name__ == "__main__":

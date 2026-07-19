@@ -11,6 +11,8 @@
 void Demo_SetSpin(i32 deg_per_tick);
 void Demo_SetEvolverTier(int tier);   // --evolver-tier N: showcase one tier
 void Demo_SetShowRig(const char* name); // --show-rig NAME: showcase any rig
+void Demo_SetShowMorph(bool on);        // --show-morph: play the spider<->snake morph
+void Demo_SetMorphFrame(int f);         // --morph-frame N: hold one morph frame
 // Start a named animation clip on the showcase robot (test/CLI hook).
 void Demo_PlayClip(const char* name);
 void Demo_Init(Level* level);

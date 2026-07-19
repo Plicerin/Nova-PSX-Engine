@@ -95,6 +95,15 @@ int main(int argc, char** argv) {
             Demo_SetShowRig(argv[++i]);             // showcase any rig by name
             if (!s_level_explicit)
                 s_level_path = "build/assets/levels/combat_stage.lvlbin";
+        } else if (strcmp(argv[i], "--show-morph") == 0) {
+            Demo_SetShowMorph(true);                // play the spider<->snake morph
+            if (!s_level_explicit)
+                s_level_path = "build/assets/levels/combat_stage.lvlbin";
+        } else if (strcmp(argv[i], "--morph-frame") == 0 && i + 1 < argc) {
+            Demo_SetShowMorph(true);
+            Demo_SetMorphFrame(atoi(argv[++i]));    // hold one morph frame
+            if (!s_level_explicit)
+                s_level_path = "build/assets/levels/combat_stage.lvlbin";
         } else if (strcmp(argv[i], "--freecam-at") == 0 && i + 1 < argc) {
             s_freecam_at = (i64)strtoll(argv[++i], nullptr, 10);
         } else if (strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {

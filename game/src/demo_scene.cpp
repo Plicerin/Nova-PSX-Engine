@@ -54,6 +54,28 @@ void Demo_SetShowRig(const char* n) {
     strncpy(s_show_rig, n, sizeof(s_show_rig) - 1);
 }
 
+// Transformation viewer (--show-morph): plays the baked spider<->snake morph
+// frames (one shared triangle pool rearranging), ping-ponging with end holds.
+enum { MORPH_FRAMES = 14 };
+static bool         s_morph_on = false;
+static int          s_morph_hold = -1;     // test hook: freeze on one frame
+static const Mesh*  s_morph[MORPH_FRAMES];
+void Demo_SetShowMorph(bool on) { s_morph_on = on; }
+void Demo_SetMorphFrame(int f) { s_morph_hold = f; }
+static int MorphFrame() {
+    if (s_morph_hold >= 0)
+        return s_morph_hold >= MORPH_FRAMES ? MORPH_FRAMES - 1 : s_morph_hold;
+    const int step = 4, hold = 26, up = (MORPH_FRAMES - 1) * step;
+    int total = 2 * up + 2 * hold;
+    int u = (int)(s_tick % (u32)total);
+    int f;
+    if (u < hold) f = 0;                             // hold spider
+    else if (u < hold + up) f = (u - hold) / step;   // spider -> snake
+    else if (u < hold + up + hold) f = MORPH_FRAMES - 1;  // hold snake
+    else f = (MORPH_FRAMES - 1) - (u - hold - up - hold) / step;  // back
+    return f < 0 ? 0 : (f >= MORPH_FRAMES ? MORPH_FRAMES - 1 : f);
+}
+
 // Shard fold-creature showcase (triangle enemy prototype).
 static const Rig*      s_shard_rig = nullptr;
 static AnimState       s_shard_anim;
@@ -117,6 +139,14 @@ void Demo_Init(Level* level) {
         snprintf(cn, sizeof(cn), "evolver_t%d_idle", s_ev_tier);
         Anim_Start(&s_ev_anim, Anim_Find(cn));
     }
+    if (s_morph_on) {
+        for (int k = 0; k < MORPH_FRAMES; k++) {
+            char n[24];
+            snprintf(n, sizeof(n), "triarmorph_%02d", k);
+            s_morph[k] = Mesh_Find(n);
+        }
+        Fx_AmbientClear();
+    }
     if (s_show_rig[0]) {
         s_show_r = Rig_Find(s_show_rig);
         char cn[48];
@@ -162,6 +192,7 @@ void Demo_Update() {
 
     // The scene, then combat, own all input in their modes (no walk-camera
     // bleed-through). Dialog is checked first: it hands off into combat.
+    if (s_morph_on) { s_tick++; return; }
     if (s_ev_tier) { s_tick++; Anim_Update(&s_ev_anim, 16); return; }
     if (s_show_rig[0]) { s_tick++; Anim_Update(&s_show_anim, 16); return; }
     if (Dialog_Active()) { Dialog_Update(); return; }
@@ -254,11 +285,16 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         scene_cam.rot = { (i16)-360, 0, 0 };       // look down ~32 deg
         scene_cam.near_z = 40;
         scene_cam.far_z = 40 * WORLD_SCALE;
-    } else if (s_show_rig[0]) {
-        scene_cam.pos = { 0, (i32)(-0.72 * 256), (i32)(-1.65 * 256) };
-        scene_cam.rot = { (i16)-235, 0, 0 };       // closer, more down-tilt
+    } else if (s_morph_on) {
+        scene_cam.pos = { 0, (i32)(-2.0 * 256), (i32)(-4.2 * 256) };
+        scene_cam.rot = { (i16)-360, 0, 0 };       // back far enough for the snake
         scene_cam.near_z = 20;
-        scene_cam.far_z = 20 * WORLD_SCALE;
+        scene_cam.far_z = 28 * WORLD_SCALE;
+    } else if (s_show_rig[0]) {
+        scene_cam.pos = { 0, (i32)(-1.7 * 256), (i32)(-2.9 * 256) };
+        scene_cam.rot = { (i16)-430, 0, 0 };       // back + high, ~38 deg down
+        scene_cam.near_z = 20;
+        scene_cam.far_z = 24 * WORLD_SCALE;
     }
 
     // Seed the free cam while inactive so toggling starts from the current view.
@@ -279,7 +315,7 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
     if (g_config.zbuffer) Fb_ClearZ();
 
     // Creature viewer: hide the arena so the wireframe/silhouette is clean.
-    for (u32 i = 0; i < s_level->nobjects && !s_show_rig[0]; i++) {
+    for (u32 i = 0; i < s_level->nobjects && !s_show_rig[0] && !s_morph_on; i++) {
         LevelObject* o = &s_level->objects[i];
         if (!o->mesh_ptr) continue;
         Mat m;
@@ -291,7 +327,19 @@ void Demo_Render(RenderContext* rc, Framebuffer* fb) {
         Rc_DrawMesh(rc, o->mesh_ptr, &m);
     }
 
-    if (s_ev_tier && s_ev_rig) {
+    if (s_morph_on) {
+        const Mesh* fm = s_morph[MorphFrame()];
+        if (fm) {
+            rc->light.npoints = 0;            // clean black (no arena colour bleed)
+            Mat m;
+            SVec rot = { 0, (i16)1024, 0 };   // broadside: see the S-wave/legs
+            Gte_RotMatrix(&rot, &m);
+            m.t[0] = 0;
+            m.t[1] = 0;
+            m.t[2] = (i32)(0.3 * 256);
+            Rc_DrawMesh(rc, fm, &m);
+        }
+    } else if (s_ev_tier && s_ev_rig) {
         Mat m;
         SVec rot = { 0, (i16)((s_tick * 9) & (ANGLE_FULL - 1)), 0 }; // slow spin
         Gte_RotMatrix(&rot, &m);
