@@ -36,7 +36,7 @@ struct Fighter {
 enum Phase : u8 {
     PH_OFF = 0, PH_INTRO, PH_MENU, PH_PLAYER_ACT, PH_RESOLVE_P,
     PH_COMPANION_ACT, PH_RESOLVE_C,
-    PH_ENEMY_WAIT, PH_ENEMY_ACT, PH_RESOLVE_E, PH_VICTORY, PH_DEFEAT,
+    PH_ENEMY_WAIT, PH_ENEMY_ACT, PH_RESOLVE_E, PH_MORPH, PH_VICTORY, PH_DEFEAT,
 };
 
 // Menu actions.
@@ -69,6 +69,15 @@ static Camera   s_inspect_cam;
 // actually pays off.
 static bool     s_enemy_wind = false;  // charged, heavy strike is imminent
 static bool     s_enemy_heavy = false; // this turn's strike is the heavy one
+
+// Transformation: at half HP the TRIARCHON morphs from the spider crawler into
+// the snake form (baked triangle-pool flipbook, then swap to the snake rig).
+enum { kMorphFrames = 14 };
+static const int kMorphDur = 66;       // ticks the flipbook plays over (~1.1s)
+static bool     s_morphed = false;     // already transformed this battle
+static bool     s_morphing = false;    // flipbook currently playing
+static i32      s_morph_t = 0;
+static const Mesh* s_morphmesh[kMorphFrames];
 static int      s_pending;             // action locked in from the menu
 static int      s_comp_cd = 0;         // companion repair cooldown, turns
 static bool     s_comp_heal = false;   // this companion turn is a repair
@@ -162,6 +171,13 @@ void Combat_Init() {
     memset(s_floats, 0, sizeof(s_floats));
     s_enemy_wind = s_enemy_heavy = false;
     s_comp_cd = 0;
+    s_morphed = s_morphing = false;
+    s_morph_t = 0;
+    for (int k = 0; k < kMorphFrames; k++) {
+        char n[24];
+        snprintf(n, sizeof(n), "triarmorph_%02d", k);
+        s_morphmesh[k] = Mesh_Find(n);
+    }
     s_phase = PH_INTRO;
     s_timer = 100;
     s_cursor = ACT_ATTACK;
@@ -223,6 +239,20 @@ const Camera* Combat_InspectCam() {
 // True once the enemy's reaction to a player/companion hit has settled.
 static bool EnemySettled() {
     return s_enemy.anim.done || s_enemy.anim.clip == s_enemy.idle;
+}
+
+// If the enemy just crossed half HP and hasn't transformed, start the morph.
+static bool MaybeMorph() {
+    if (s_morphed || s_enemy.hp <= 0 || s_enemy.hp * 2 > s_enemy.max_hp)
+        return false;
+    s_morphing = true;
+    s_morph_t = 0;
+    s_phase = PH_MORPH;
+    LVec c = s_enemy.pos; c.vy -= 420;
+    Fx_Burst(c, 22, 18, 255, 60, 40);
+    Fx_AddLight(c, 255, 44, 32, 9 * 256, 44);
+    Fx_Shake(30, 24);
+    return true;
 }
 
 void Combat_Update() {
@@ -311,7 +341,7 @@ void Combat_Update() {
             if (s_enemy.anim.done) StartClip(&s_enemy, s_enemy.idle);
             if (s_enemy.hp <= 0) {
                 s_phase = PH_VICTORY;
-            } else {
+            } else if (!MaybeMorph()) {
                 s_phase = PH_COMPANION_ACT;
                 s_timer = 40;
                 s_comp_cd = s_comp_cd > 0 ? s_comp_cd - 1 : 0;
@@ -355,7 +385,7 @@ void Combat_Update() {
             if (s_enemy.anim.done) StartClip(&s_enemy, s_enemy.idle);
             if (s_enemy.hp <= 0) {
                 s_phase = PH_VICTORY;
-            } else {
+            } else if (!MaybeMorph()) {
                 s_phase = PH_ENEMY_WAIT;
                 s_timer = 45;
             }
@@ -407,6 +437,29 @@ void Combat_Update() {
         }
         break;
 
+    case PH_MORPH:
+        s_morph_t++;
+        if (s_morph_t % 12 == 0) {              // sputtering FX through the change
+            LVec c = s_enemy.pos; c.vy -= 320;
+            Fx_Burst(c, 9, 15, 255, 55, 40);
+            Fx_Shake(16, 10);
+        }
+        if (s_morph_t >= kMorphDur) {           // land on the snake rig
+            s_enemy.rig    = Rig_Find("triarsnake");
+            s_enemy.idle   = Anim_Find("triarsnake_idle");
+            s_enemy.attack = Anim_Find("triarsnake_attack");
+            s_enemy.hit    = Anim_Find("triarsnake_hit");
+            StartClip(&s_enemy, s_enemy.idle);
+            s_morphing = false;
+            s_morphed = true;
+            LVec c = s_enemy.pos; c.vy -= 420;
+            Fx_AddLight(c, 255, 44, 32, 8 * 256, 30);
+            Fx_Shake(24, 16);
+            s_phase = PH_MENU;                  // player acts after the change
+            s_cursor = ACT_ATTACK;
+        }
+        break;
+
     case PH_VICTORY:
     case PH_DEFEAT: {
         Fighter* loser = (s_phase == PH_VICTORY) ? &s_enemy : &s_player;
@@ -452,6 +505,30 @@ static void DrawFighter(RenderContext* rc, Fighter* f) {
     Anim_Draw(rc, f->rig, &f->anim, &m);
 }
 
+// The transformation: play the baked spider->snake flipbook at the enemy's
+// spot (its clusters break and the triangles migrate). Ends on the snake rig.
+static void DrawMorph(RenderContext* rc) {
+    int fr = (int)((i64)s_morph_t * kMorphFrames / kMorphDur);
+    if (fr < 0) fr = 0;
+    if (fr >= kMorphFrames) fr = kMorphFrames - 1;
+    const Mesh* mesh = s_morphmesh[fr];
+    if (!mesh) return;
+    Mat m;
+    Gte_RotMatrix(&s_enemy.rot, &m);
+    i32 sc = s_enemy.scale ? s_enemy.scale : FX_ONE;
+    Gte_ScaleMatrix(&m, sc, sc, sc);
+    m.t[0] = s_enemy.pos.vx;
+    m.t[1] = s_enemy.pos.vy;
+    m.t[2] = s_enemy.pos.vz;
+    if (rc->light.npoints < (u8)MAX_POINT_LIGHTS) {   // red core glow (no eye bone here)
+        LevelPoint* p = &rc->light.points[rc->light.npoints++];
+        p->r = 255; p->g = 34; p->b = 26;
+        LVec c = s_enemy.pos; c.vy -= 400;
+        p->pos = c; p->radius = (i32)(2.2 * 256);
+    }
+    Rc_DrawMesh(rc, mesh, &m);
+}
+
 void Combat_Render(RenderContext* rc) {
     if (!s_active || s_phase == PH_OFF) return;
     if (s_inspect) {                    // status screen: character only
@@ -459,7 +536,8 @@ void Combat_Render(RenderContext* rc) {
         return;
     }
     DrawFighter(rc, &s_player);
-    DrawFighter(rc, &s_enemy);
+    if (s_morphing) DrawMorph(rc);
+    else            DrawFighter(rc, &s_enemy);
     DrawFighter(rc, &s_companion);
 }
 

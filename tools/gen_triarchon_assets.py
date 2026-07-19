@@ -155,32 +155,52 @@ def idle_clip():
 
 
 # --------------------------------------------------------- serpent form
-SNAKE_SEGS = 9
+SNAKE_SEGS = 11
+
+
+def snake_path():
+    """Curved, periscoping serpent centreline: [(pos, tangent-dir)] per segment
+    plus the head position. Shared by the snake RIG (below) and the morph
+    endpoint (gen_morph.flat_snake) so a mid-combat morph lands seamlessly on
+    the rig. Head rears up, neck curves to the deck, body S-waves back."""
+    seglen = E * math.sqrt(2.0 / 3.0) * 3
+    pos = (0.0, 0.86, 0.55)
+    pitch = -62.0
+    path = []
+    for s in range(SNAKE_SEGS):
+        yaw = 38.0 * math.sin((s + 1) * 0.85)
+        cp, sp = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
+        cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        d = _norm((sy * cp, sp, -cy * cp))
+        path.append((pos, d))
+        pos = _add(pos, _mul(d, seglen))
+        pitch = min(0.0, pitch + 31.0)
+    head_pos = _add(path[0][0], (0.0, 0.12, 0.10))
+    return path, head_pos
 
 
 def build_snake(name):
-    """A serpent: a chain of tube segments (each a bone hinged to the previous)
-    that undulates via a travelling wave. Head + red eye at the front. Same
-    fixed-triangle clusters as the crawler, arranged as a spine instead of a
-    body+legs -- this is how the species can read as a snake."""
+    """The serpent RIG: a chain of tube segments laid along snake_path (each
+    pre-oriented to the local tangent, so the identity-rest rig reconstructs the
+    curve). Segments bend about vertical for the live slither. Head + red eye."""
     bones, meshes = [], {}
-    seglen = E * math.sqrt(2.0 / 3.0) * 2      # a 2-band tube's length
-    for s in range(SNAKE_SEGS):
-        seg, _ = tube_cluster((0, 0, -1), 2, s * 24)   # extend -z (behind head)
+    path, head_pos = snake_path()
+    for s, (pos, d) in enumerate(path):
+        seg, _ = tube_cluster(d, 3, s * 20)
         meshes["%s_seg%d" % (name, s)] = seg
         if s == 0:
             bones.append({"name": "seg0", "parent": -1, "mesh": "%s_seg0" % name,
-                          "pos": [0, BODY_Y, 0], "rot": [0, 0, 0]})
+                          "pos": [round(c, 4) for c in pos], "rot": [0, 0, 0]})
         else:
+            bp = _sub(pos, path[s - 1][0])
             bones.append({"name": "seg%d" % s, "parent": "seg%d" % (s - 1),
                           "mesh": "%s_seg%d" % (name, s),
-                          "pos": [0, 0, round(-seglen, 4)], "rot": [0, 0, 0]})
-    # head at the front (+z) of seg0
+                          "pos": [round(c, 4) for c in bp], "rot": [0, 0, 0]})
     hc, eye_face = head_cluster()
     meshes["%s_head" % name] = hc
-    head_piv = (0.0, 0.03, 0.14)
     bones.append({"name": "head", "parent": "seg0", "mesh": "%s_head" % name,
-                  "pos": [round(c, 4) for c in head_piv], "rot": [0, 0, 0]})
+                  "pos": [round(c, 4) for c in _sub(head_pos, path[0][0])],
+                  "rot": [0, 0, 0]})
     eyeC = _mul(_add(_add(eye_face[0], eye_face[1]), eye_face[2]), 1.0 / 3)
     eye_rel = [_sub(v, eyeC) for v in eye_face]
     bones.append({"name": "eye", "parent": "head", "mesh": "%s_eye" % name,
@@ -188,20 +208,44 @@ def build_snake(name):
     return bones, meshes, eye_rel
 
 
-def slither_clip(name):
-    """Horizontal S-wave travelling head->tail (key ry bends each segment about
-    the vertical). Amplitude grows toward the tail for a whip."""
-    K = 8
+def _snake_wave(amp0, ampk, wave, spd, key_ms, K, name, loop=True):
     keys = []
     for k in range(K):
         p = k / float(K)
         fr = {}
         for s in range(SNAKE_SEGS):
-            amp = 7.0 + s * 1.6
-            ry = amp * math.sin(2 * math.pi * p - s * 0.9)
+            amp = amp0 + s * ampk
+            ry = amp * math.sin(2 * math.pi * p * spd - s * wave)
             fr["seg%d" % s] = {"rot": [0, round(ry, 1), 0]}
         keys.append(fr)
-    return {"name": "%s_walk" % name, "loop": True, "key_ms": 90, "keys": keys}
+    return {"name": name, "loop": loop, "key_ms": key_ms, "keys": keys}
+
+
+def snake_idle(name):
+    return _snake_wave(3.0, 0.6, 0.9, 1.0, 150, 8, "%s_idle" % name)
+
+
+def snake_attack(name):
+    """Coil the front back, then whip it forward at the foe."""
+    keys = []
+    seq = [0.0, -1.0, 1.6, 1.2, 0.0]          # front-swing scale per key
+    for k, sc in enumerate(seq):
+        fr = {}
+        for s in range(SNAKE_SEGS):
+            lead = max(0, 5 - s) / 5.0        # front segments lead the strike
+            fr["seg%d" % s] = {"rot": [0, round(sc * 34.0 * lead, 1), 0]}
+        keys.append(fr)
+    return {"name": "%s_attack" % name, "loop": False, "key_ms": 85, "keys": keys}
+
+
+def snake_hit(name):
+    keys = []
+    for k, sc in enumerate([0.0, -1.4, -0.5, 0.0]):
+        fr = {}
+        for s in range(SNAKE_SEGS):
+            fr["seg%d" % s] = {"rot": [0, round(sc * 20.0, 1), 0]}
+        keys.append(fr)
+    return {"name": "%s_hit" % name, "loop": False, "key_ms": 80, "keys": keys}
 
 
 def crawler_attack():
@@ -260,7 +304,9 @@ def main():
     write_creature("triar1", bones, meshes, eye_rel,
                    [idle_clip(), walk_clip(), crawler_attack(), crawler_hit()])
     sb, sm, se = build_snake("triarsnake")
-    write_creature("triarsnake", sb, sm, se, [slither_clip("triarsnake")])
+    write_creature("triarsnake", sb, sm, se,
+                   [snake_idle("triarsnake"), snake_attack("triarsnake"),
+                    snake_hit("triarsnake")])
 
 
 if __name__ == "__main__":

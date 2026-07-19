@@ -15,6 +15,7 @@ import os
 import numpy as np
 
 from tri_build import TriBuild
+from gen_triarchon_assets import snake_path      # shared serpent centreline
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "source_assets", "models")
@@ -40,27 +41,14 @@ def flat_spider():
 
 
 def flat_snake():
-    """A reared, slithering serpent: the head periscopes up, the neck curves
-    down to the deck, and the body S-waves back. Same 11 segments (198 tris) +
-    head (8) = 206, just laid along a curved centreline instead of a stick."""
+    """The serpent, laid along the SHARED snake_path so this morph endpoint is
+    identical to the triarsnake rig's rest pose (seamless mid-combat morph).
+    11 segments (198 tris) + head (8) = 206."""
     b = TriBuild(E=E)
-    seglen = E * math.sqrt(2.0 / 3.0) * 3
-    pos = np.array([0.0, 0.86, 0.55])          # raised head, forward
-    pitch = -62.0                              # neck descends from the head
-    head_pos, head_dir = pos.copy(), None
-    for s in range(11):
-        yaw = 38.0 * math.sin((s + 1) * 0.85)  # horizontal S-wave (slither)
-        cp, sp = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
-        cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-        d = np.array([sy * cp, sp, -cy * cp])
-        d /= (np.linalg.norm(d) or 1)
-        if s == 0:
-            head_dir = d
-        b.tube(tuple(pos), tuple(d), 3, twist0=s * 20)          # 18 tris
-        pos = pos + d * seglen
-        pitch = min(0.0, pitch + 31.0)         # rear -> level over 2 segments
-    b.octahedron((head_pos[0], head_pos[1] + 0.12, head_pos[2] + 0.10),
-                 a=E / math.sqrt(2))                            # 8
+    path, head_pos = snake_path()
+    for s, (pos, d) in enumerate(path):
+        b.tube(pos, d, 3, twist0=s * 20)                       # 18 tris
+    b.octahedron(head_pos, a=E / math.sqrt(2))                 # 8
     return b
 
 

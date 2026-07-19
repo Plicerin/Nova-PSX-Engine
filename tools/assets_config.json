@@ -1107,6 +1107,30 @@
     11
    ],
    "matte": true
+  },
+  {
+   "name": "triarsnake_seg9",
+   "source": "source_assets/models/triarsnake_seg9.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
+  },
+  {
+   "name": "triarsnake_seg10",
+   "source": "source_assets/models/triarsnake_seg10.obj",
+   "lit": true,
+   "doublesided": true,
+   "color": [
+    9,
+    9,
+    11
+   ],
+   "matte": true
   }
  ],
  "sounds": [
